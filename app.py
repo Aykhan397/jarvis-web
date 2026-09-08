@@ -10,7 +10,7 @@ if not api_key:
     st.error("API Açar təyin edilməyib! Lütfən Streamlit ayarlarından əlavə edin.")
 else:
     genai.configure(api_key=api_key)
-    model = genai.GenerativeModel('gemini-3.6-flash')
+    model = genai.GenerativeModel('gemini-1.5-flash')
 
     if "messages" not in st.session_state:
         st.session_state.messages = []
@@ -25,7 +25,10 @@ else:
             st.markdown(prompt)
 
         with st.chat_message("assistant"):
-            sys_prompt = f"Sen Jarvis'sin. Kullanıcıya sadık, zeki ve kısa cevaplar ver.\nKullanıcı: {prompt}"
-            response = model.generate_content(sys_prompt)
-            st.markdown(response.text)
-            st.session_state.messages.append({"role": "assistant", "content": response.text})
+            try:
+                sys_prompt = f"Sen Jarvis'sin. Kullanıcıya sadık, zeki ve kısa cevaplar ver.\nKullanıcı: {prompt}"
+                response = model.generate_content(sys_prompt)
+                st.markdown(response.text)
+                st.session_state.messages.append({"role": "assistant", "content": response.text})
+            except Exception as e:
+                st.error("Xəta baş verdi! Lütfən bir az sonra yenidən yoxlayın və ya API açarınızı yoxlayın.")
