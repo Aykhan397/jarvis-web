@@ -1,5 +1,5 @@
 import streamlit as st
-import google.generativeai as genai
+from google import genai
 
 st.set_page_config(page_title="Jarvis AI", page_icon="🤖")
 st.title("🤖 Jarvis AI Assistant")
@@ -7,10 +7,10 @@ st.title("🤖 Jarvis AI Assistant")
 api_key = st.secrets.get("GEMINI_API_KEY")
 
 if not api_key:
-    st.error("API Açar təyin edilməyib! Lütfən Streamlit ayarlarından əlavə edin.")
+    st.error("API Açar təyin edilməyib! Lütfən Streamlit Secrets ayarlarını yoxlayın.")
 else:
-    genai.configure(api_key=api_key)
-    model = genai.GenerativeModel('gemini-1.5-flash')
+    # Google-un yeni rəsmi SDK müştərisi
+    client = genai.Client(api_key=api_key)
 
     if "messages" not in st.session_state:
         st.session_state.messages = []
@@ -26,9 +26,12 @@ else:
 
         with st.chat_message("assistant"):
             try:
-                sys_prompt = f"Sen Jarvis'sin. Kullanıcıya sadık, zeki ve kısa cevaplar ver.\nKullanıcı: {prompt}"
-                response = model.generate_content(sys_prompt)
+                response = client.models.generate_content(
+                    model='gemini-2.5-flash',
+                    contents=f"Sen Jarvis'sin. Kullanıcıya sadık, zeki ve kısa cevaplar ver.\nKullanıcı: {prompt}"
+                )
                 st.markdown(response.text)
                 st.session_state.messages.append({"role": "assistant", "content": response.text})
             except Exception as e:
-                st.error("Xəta baş verdi! Lütfən bir az sonra yenidən yoxlayın və ya API açarınızı yoxlayın.")
+                # Dəqiq xəta mesajını ekrana çıxarırıq ki, səbəbini görək
+                st.error(f"Xəta detalları: {e}")
