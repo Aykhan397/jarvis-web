@@ -9,7 +9,6 @@ api_key = st.secrets.get("GEMINI_API_KEY")
 if not api_key:
     st.error("API Açar təyin edilməyib! Lütfən Streamlit Secrets ayarlarını yoxlayın.")
 else:
-    # Google-un yeni rəsmi SDK müştərisi
     client = genai.Client(api_key=api_key)
 
     if "messages" not in st.session_state:
@@ -27,11 +26,10 @@ else:
         with st.chat_message("assistant"):
             try:
                 response = client.models.generate_content(
-                    model='gemini-2.5-flash',
+                    model='gemini-3.6-flash',
                     contents=f"Sen Jarvis'sin. Kullanıcıya sadık, zeki ve kısa cevaplar ver.\nKullanıcı: {prompt}"
                 )
                 st.markdown(response.text)
                 st.session_state.messages.append({"role": "assistant", "content": response.text})
             except Exception as e:
-                # Dəqiq xəta mesajını ekrana çıxarırıq ki, səbəbini görək
                 st.error(f"Xəta detalları: {e}")
