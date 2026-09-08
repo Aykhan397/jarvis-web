@@ -27,7 +27,7 @@ else:
         with st.chat_message("assistant"):
             try:
                 response = client.models.generate_content(
-                    model='gemini-3.6-flash',
+                    model='gemini-1.5-flash',
                     contents=f"Sen Jarvis'sin. Kullanıcıya sadık, zeki ve kısa cevaplar ver.\nKullanıcı: {prompt}"
                 )
                 st.markdown(response.text)
