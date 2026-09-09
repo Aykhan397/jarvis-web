@@ -90,30 +90,18 @@ if audio_data and 'bytes' in audio_data:
             client = get_gemini_client()
             audio_bytes = audio_data['bytes']
             
-            transcribe_resp = None
-            # 503 xətasına qarşı avtomatik 2 dəfə təkrar cəhd mexanizmi
-            for attempt in range(2):
-                try:
-                    transcribe_resp = client.models.generate_content(
-                        model='gemini-3.6-flash',
-                        contents=[
-                            types.Part.from_bytes(data=audio_bytes, mime_type="audio/wav"),
-                            "Bu səsli mesajda nə deyilir? Sadəcə olaraq deyilən sözləri ana dilində yazıya çevir, əlavə heç nə yazma."
-                        ]
-                    )
-                    if transcribe_resp and transcribe_resp.text:
-                        break
-                except Exception as err:
-                    if attempt == 1:
-                        raise err
-                    time.sleep(1)
-
+            transcribe_resp = client.models.generate_content(
+                model='gemini-3.6-flash',
+                contents=[
+                    types.Part.from_bytes(data=audio_bytes, mime_type="audio/wav"),
+                    "Bu səsli mesajda nə deyilir? Sadəcə olaraq deyilən sözləri ana dilində yazıya çevir, əlavə heç nə yazma."
+                ]
+            )
             if transcribe_resp and transcribe_resp.text:
                 st.session_state.voice_text = transcribe_resp.text.strip()
-                st.success("Səs yazıya çevrildi!")
-                st.rerun()
+                st.success("Səs yazıya çevrildi! Aşağıdakı xanaya düşdü.")
         except Exception as e:
-            st.error("Serverdə qısamüddətli sıxlıq oldu. Zəhmət olmasa yenidən 'Başla (Danış)' düyməsini sıx.")
+            st.error(f"Səsi oxumaq mümkün olmadı: {e}")
 
 with st.form(key="chat_form", clear_on_submit=True):
     prompt = st.text_input("Jarvisə nəsə de və ya link yapışdır...", value=st.session_state.voice_text, placeholder="Məs: https://youtube.com/... bu videoda nə var?")
