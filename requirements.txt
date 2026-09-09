@@ -3,3 +3,4 @@ google-genai
 openai
 anthropic
 pillow
+streamlit-mic-recorder
