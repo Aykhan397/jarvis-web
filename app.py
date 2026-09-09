@@ -4,10 +4,9 @@ from google.genai import types
 from PIL import Image
 import time
 
-# Səhifənin tənzimlənməsi
 st.set_page_config(page_title="Jarvis AI", page_icon="🤖", layout="centered")
 
-# Streamlit nişanlarını, footer-i və "Manage app" düyməsini tamamilə gizlədən CSS
+# Streamlit nişanlarını, footer-i gizlədən CSS
 hide_streamlit_style = """
     <style>
     #MainMenu {visibility: hidden;}
@@ -19,25 +18,14 @@ hide_streamlit_style = """
 """
 st.markdown(hide_streamlit_style, unsafe_allow_html=True)
 
-# Google Genai Client (Secrets-dən açarı oxuyur)
 @st.cache_resource
 def get_gemini_client():
     return genai.Client(api_key=st.secrets["GEMINI_API_KEY"])
 
-# Söhbət tarixçəsinin yaddaşı
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# Sol panel (Şəkil yükləmək və söhbəti təmizləmək)
-st.sidebar.title("Jarvis İdarəetmə")
-uploaded_file = st.sidebar.file_uploader("Şəkil yüklə (Analiz üçün)", type=["jpg", "jpeg", "png"])
-
-st.sidebar.markdown("---")
-if st.sidebar.button("🗑️ Bütün Söhbəti Təmizlə", use_container_width=True):
-    st.session_state.messages = []
-    st.rerun()
-
-# Jarvisin Peşəkar Sistem Təlimatı
+# Jarvisin Sistem Təlimatı
 system_instruction_text = (
     "Sən Jarvis-sən. Azərbaycan dilində və istənilən digər dildə mükəmməl ünsiyyət quran, sadiq, son dərəcə zəkusan. "
     "Heç vaxt yalandan məlumat uydurma, həmişə dəqiq, faktlara əsaslanan və qısa/lakonik cavablar ver. "
@@ -48,6 +36,17 @@ system_instruction_text = (
 )
 
 st.title("🤖 Jarvis AI")
+
+# Əsas səhifədə səliqəli idarəetmə paneli (Söhbəti təmizləmək və şəkil əlavə etmək üçün)
+col_ctrl1, col_ctrl2 = st.columns([2, 1])
+with col_ctrl1:
+    uploaded_file = st.file_uploader("Şəkil əlavə et (Analiz üçün)", type=["jpg", "jpeg", "png"], label_visibility="collapsed")
+with col_ctrl2:
+    if st.button("🗑️ Söhbəti Təmizlə", use_container_width=True):
+        st.session_state.messages = []
+        st.rerun()
+
+st.markdown("---")
 
 # Mövcud söhbət tarixçəsini ekranda göstəririk
 for idx, message in enumerate(st.session_state.messages):
@@ -77,7 +76,6 @@ for idx, message in enumerate(st.session_state.messages):
 if prompt := st.chat_input("Jarvisə nəsə de... (Səslə yazmaq üçün klaviatura mikrofonundan istifadə et)"):
     img = Image.open(uploaded_file) if uploaded_file else None
     
-    # İstifadəçi mesajını tarixçəyə əlavə edirik
     st.session_state.messages.append({"role": "user", "content": prompt, "image": img})
     
     with st.chat_message("user"):
@@ -85,7 +83,6 @@ if prompt := st.chat_input("Jarvisə nəsə de... (Səslə yazmaq üçün klavia
             st.image(img, width=300)
         st.markdown(prompt)
 
-    # Jarvisin cavab mexanizmi (503 və 429 xətalarına qarşı təkrar cəhd qoruması ilə)
     with st.chat_message("assistant"):
         response_text = None
         success = False
@@ -98,7 +95,6 @@ if prompt := st.chat_input("Jarvisə nəsə de... (Səslə yazmaq üçün klavia
 
             time.sleep(0.2)
 
-            # Əvvəlcə 3.6-flash, alınmasa 2.0-flash ilə sınaqdan keçirən mexanizm
             models_to_try = ['gemini-3.6-flash', 'gemini-2.0-flash', 'gemini-1.5-flash']
             
             for model_name in models_to_try:
