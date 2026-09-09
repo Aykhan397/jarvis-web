@@ -5,25 +5,7 @@ from PIL import Image
 import time
 from streamlit_mic_recorder import mic_recorder
 
-st.set_page_config(page_title="Jarvis AI", page_icon="🤖", layout="centered")
-
-# Streamlit-in sol menyusunu, toolbar-ı və bütün idarəetmə elementlərini saniyəsindən gizlədən sərt CSS
-hide_streamlit_style = """
-    <style>
-    #MainMenu {visibility: hidden !important; display: none !important;}
-    footer {visibility: hidden !important; display: none !important;}
-    header {visibility: hidden !important; display: none !important;}
-    .stDeployButton {display: none !important;}
-    [data-testid="stToolbar"] {visibility: hidden !important; display: none !important;}
-    [data-testid="stHeader"] {visibility: hidden !important; display: none !important;}
-    [data-testid="manage-app-button"] {display: none !important;}
-    [data-testid="stSidebar"] {display: none !important; width: 0px !important;}
-    [data-testid="collapsedControl"] {display: none !important;}
-    .viewerBadge_container__1QSob {display: none !important !important;}
-    div[data-testid="stStatusWidget"] {visibility: hidden !important; display: none !important;}
-    </style>
-"""
-st.markdown(hide_streamlit_style, unsafe_allow_html=True)
+st.set_page_config(page_title="Jarvis AI", page_icon="🤖", layout="wide")
 
 @st.cache_resource
 def get_gemini_client():
@@ -45,16 +27,27 @@ system_instruction_text = (
     "4. Sualları gecikdirmədən, dərhal və dəqiq cavablandır."
 )
 
-st.title("🤖 Jarvis AI")
-
-col_ctrl1, col_ctrl2 = st.columns([2, 1])
-with col_ctrl1:
-    uploaded_file = st.file_uploader("Şəkil əlavə et (Analiz üçün)", type=["jpg", "jpeg", "png"], label_visibility="collapsed")
-with col_ctrl2:
-    if st.button("🗑️ Söhbəti Təmizlə", use_container_width=True):
+# Sol tərəfdə həmişə görünən söhbət tarixçəsi paneli
+with st.sidebar:
+    st.title("💬 Söhbətlər")
+    if st.button("➕ Yeni Söhbət", use_container_width=True):
         st.session_state.messages = []
         st.session_state.voice_text = ""
         st.rerun()
+    
+    st.markdown("---")
+    st.markdown("### Keçmiş Suallar")
+    if st.session_state.messages:
+        for m in st.session_state.messages:
+            if m["role"] == "user":
+                preview = m["content"][:28] + "..." if len(m["content"]) > 28 else m["content"]
+                st.write(f"▫️ {preview}")
+    else:
+        st.caption("Hələ ki söhbət yoxdur.")
+
+st.title("🤖 Jarvis AI")
+
+uploaded_file = st.file_uploader("Şəkil əlavə et (Analiz üçün)", type=["jpg", "jpeg", "png"], label_visibility="collapsed")
 
 st.markdown("---")
 
