@@ -2,7 +2,6 @@ import streamlit as st
 from google import genai
 from google.genai import types
 from PIL import Image
-from streamlit_mic_recorder import mic_recorder
 
 st.set_page_config(page_title="Jarvis AI", page_icon="🤖", layout="centered")
 
@@ -24,9 +23,14 @@ def get_gemini_client():
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# Sol paneldə şəkil yükləmək imkanı
+# Sol paneldə şəkil yükləmək və tarixçəni təmizləmək düyməsi
 st.sidebar.title("Jarvis İdarəetmə")
 uploaded_file = st.sidebar.file_uploader("Şəkil yüklə (Analiz üçün)", type=["jpg", "jpeg", "png"])
+
+st.sidebar.markdown("---")
+if st.sidebar.button("🗑️ Bütün Söhbəti Təmizlə", use_container_width=True):
+    st.session_state.messages = []
+    st.rerun()
 
 system_instruction_text = (
     "Sən Jarvis-sən. Azərbaycan dilində və istənilən digər dildə mükəmməl ünsiyyət quran, sadiq, son dərəcə zəkusan. "
@@ -38,74 +42,40 @@ system_instruction_text = (
 
 st.title("🤖 Jarvis AI")
 
-# Söhbət tarixçəsini göstər (səsli mesajlara qulaq asmaq üçün st.audio dəstəyi ilə)
-for message in st.session_state.messages:
-    with st.chat_message(message["role"]):
-        if "image" in message and message["image"]:
-            st.image(message["image"], width=300)
-        
-        # Əgər mesaj səsli mesajdırsa, pleyerdə qulaq asmaq olar
-        if "audio_bytes" in message and message["audio_bytes"]:
-            st.audio(message["audio_bytes"], format="audio/wav")
+# Söhbət tarixçəsini göstəririk və hər mesajın yanında silmə düyməsi qoyuruq
+for idx, message in enumerate(st.session_state.messages):
+    col_msg, col_del = st.columns([10, 1])
+    
+    with col_msg:
+        with st.chat_message(message["role"]):
+            if "image" in message and message["image"]:
+                st.image(message["image"], width=300)
+            st.markdown(message["content"])
             
-        st.markdown(message["content"])
+    with col_del:
+        # Hər mesajı ayrı-ayrılıqda silmək üçün kiçik səbət düyməsi
+        if st.button("🗑️", key=f"del_{idx}", help="Bu mesajı sil"):
+            # İstifadəçi mesajı və ya ona uyğun cavab silinərkən siyahıdan çıxarılır
+            st.session_state.messages.pop(idx)
+            st.rerun()
 
-# Səhifənin aşağı hissəsində chat input və səs düyməsini səliqəli yerləşdiririk
-chat_prompt = st.chat_input("Jarvisə nəsə de...")
-
-# Göndərmə oxunun yanında mikrofon düyməsi üçün kiçik sütun strukturu
-col1, col2 = st.columns([6, 1])
-with col2:
-    audio_info = mic_recorder(
-        start_prompt="🎙️",
-        stop_prompt="⏹️",
-        just_once=True,
-        key='voice_msg_side'
-    )
-
-prompt_to_process = None
-audio_bytes = None
-img = Image.open(uploaded_file) if uploaded_file else None
-
-if audio_info and 'bytes' in audio_info:
-    audio_bytes = audio_info['bytes']
-    prompt_to_process = "Səsli mesaj göndərildi. Zəhmət olmasa bu səsi dinlə və Azərbaycan dilində qısa, dəqiq cavab ver."
+# Səhifənin aşağı hissəsində sürətli chat input
+if prompt := st.chat_input("Jarvisə nəsə de..."):
+    img = Image.open(uploaded_file) if uploaded_file else None
     
-    st.session_state.messages.append({
-        "role": "user", 
-        "content": "🎙️ [Səsli mesaj]", 
-        "image": img, 
-        "audio_bytes": audio_bytes
-    })
-    
-    with st.chat_message("user"):
-        st.audio(audio_bytes, format="audio/wav")
-        st.markdown("🎙️ *[Səsli mesaj]*")
-
-elif chat_prompt:
-    prompt_to_process = chat_prompt
-    st.session_state.messages.append({
-        "role": "user", 
-        "content": chat_prompt, 
-        "image": img, 
-        "audio_bytes": None
-    })
+    st.session_state.messages.append({"role": "user", "content": prompt, "image": img})
     
     with st.chat_message("user"):
         if img:
             st.image(img, width=300)
-        st.markdown(chat_prompt)
+        st.markdown(prompt)
 
-# Jarvisin cavablandırma mexanizmi (503 xətasının qarşısını almaq üçün qoruyucu blokla)
-if prompt_to_process:
     with st.chat_message("assistant"):
         try:
             client = get_gemini_client()
-            contents = [prompt_to_process]
+            contents = [prompt]
             if img:
                 contents.append(img)
-            if audio_bytes:
-                contents.append(types.Part.from_bytes(data=audio_bytes, mime_type="audio/wav"))
 
             response = client.models.generate_content(
                 model='gemini-3.6-flash',
@@ -117,13 +87,8 @@ if prompt_to_process:
             )
             response_text = response.text
             st.markdown(response_text)
-            st.session_state.messages.append({
-                "role": "user" if False else "assistant", # sadəcə assistant rolu
-                "role": "assistant",
-                "content": response_text, 
-                "image": None, 
-                "audio_bytes": None
-            })
+            st.session_state.messages.append({"role": "assistant", "content": response_text, "image": None})
+            st.rerun()
             
         except Exception as e:
-            st.error(f"Server cavab verərkən gecikdi (503 xətası). Zəhmət olmasa bir daha cəhd edin.")
+            st.error("Serverlə əlaqə zamanı müvəqqəti xəta baş verdi. Zəhmət olmasa yenidən cəhd edin.")
