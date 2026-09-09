@@ -89,17 +89,28 @@ if audio_data and 'bytes' in audio_data:
             client = get_gemini_client()
             audio_bytes = audio_data['bytes']
             
-            # Model burada birbaşa gemini-3.6-flash olaraq yeniləndi
-            transcribe_resp = client.models.generate_content(
-                model='gemini-3.6-flash',
-                contents=[
-                    types.Part.from_bytes(data=audio_bytes, mime_type="audio/wav"),
-                    "Bu səsli mesajda nə deyilir? Sadəcə olaraq deyilən sözləri ana dilində yazıya çevir, əlavə heç nə yazma."
-                ]
-            )
+            transcribe_resp = None
+            audio_models = ['gemini-3.6-flash', 'gemini-1.5-flash', 'gemini-2.5-flash']
+            
+            for amodel in audio_models:
+                try:
+                    transcribe_resp = client.models.generate_content(
+                        model=amodel,
+                        contents=[
+                            types.Part.from_bytes(data=audio_bytes, mime_type="audio/wav"),
+                            "Bu səsli mesajda nə deyilir? Sadəcə olaraq deyilən sözləri ana dilində yazıya çevir, əlavə heç nə yazma."
+                        ]
+                    )
+                    if transcribe_resp and transcribe_resp.text:
+                        break
+                except Exception:
+                    continue
+
             if transcribe_resp and transcribe_resp.text:
                 st.session_state.voice_text = transcribe_resp.text.strip()
                 st.success("Səs yazıya çevrildi! Aşağıdakı xanaya düşdü.")
+            else:
+                st.error("Səsi mətnə çevirmək mümkün olmadı, serverlər çox yüklüdür. Zəhmət olmasa bir az sonra yenidən cəhd edin və ya yazaraq yazın.")
         except Exception as e:
             st.error(f"Səsi oxumaq mümkün olmadı: {e}")
 
@@ -129,7 +140,7 @@ if submit_button and prompt:
                 contents.append(img)
 
             time.sleep(0.2)
-            models_to_try = ['gemini-3.6-flash', 'gemini-2.0-flash', 'gemini-1.5-flash']
+            models_to_try = ['gemini-3.6-flash', 'gemini-1.5-flash', 'gemini-2.5-flash']
             
             for model_name in models_to_try:
                 try:
@@ -149,7 +160,7 @@ if submit_button and prompt:
                     continue
             
             if not success:
-                response_text = "⚠️ Server məşğuldur. Zəhmət olmasa bir neçə saniyə gözləyib yenidən cəhd edin."
+                response_text = "⚠️ Serverlər hazırda çox yüklüdür (503 xətası). Zəhmət olmasa 5-10 saniyə gözləyib yenidən cəhd edin."
                 success = True
 
         except Exception as e:
