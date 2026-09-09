@@ -1,5 +1,6 @@
 import streamlit as st
 from google import genai
+from google.genai import types
 
 st.set_page_config(page_title="Jarvis AI", page_icon="🤖")
 st.title("🤖 Jarvis AI Assistant")
@@ -25,8 +26,8 @@ else:
 
         with st.chat_message("assistant"):
             try:
-                # Jarvis-ə xüsusi xarakter və funksionallıq veririk
-                system_instruction = (
+                # Sistem təlimatlarını yeni standartlara uyğun config ilə ötürürük
+                system_instruction_text = (
                     "Sən Jarvis-sən. Azərbaycan dilində mükəmməl ünsiyyət quran, sadiq və zəkusan. "
                     "1. İnsan adları (tarixi, dini, məşhur və ya yerli şəxsiyyətlər, məsələn Mirmövsüm ağa) soruşulduqda onları dərindən tanımalı və ətraflı məlumat verməlisən. "
                     "2. İstifadəçi hər hansı bir məkan, yer və ya ziyarətgah soruşduqda, məlumat verməklə yanaşı həmin yerin Google Maps axtarış linkini də cavaba əlavə etməlisən "
@@ -34,8 +35,11 @@ else:
                 )
 
                 response = client.models.generate_content(
-                    model='gemini-1.5-flash',
-                    contents=f"{system_instruction}\n\nİstifadəçi sorğusu: {prompt}"
+                    model='gemini-2.0-flash',
+                    contents=prompt,
+                    config=types.GenerateContentConfig(
+                        system_instruction=system_instruction_text,
+                    ),
                 )
                 
                 st.markdown(response.text)
