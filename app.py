@@ -1,5 +1,5 @@
 import streamlit as st
-import streamlit.components.v1 as components
+from streamlit_mic_recorder import mic_recorder
 from google import genai
 from google.genai import types
 from openai import OpenAI
@@ -102,73 +102,33 @@ if st.session_state.mode == "chat":
 # --- 2. SƏSLİ ZƏNG (VOICE CALL) REJİMİ ---
 elif st.session_state.mode == "voice_call":
     st.markdown("""
-        <div style="text-align: center; margin-top: 30px;">
+        <div style="text-align: center; margin-top: 20px;">
             <h2>🎙️ Jarvis Səsli Əlaqə Rejimi</h2>
-            <p>Düyməyə basıb danışın, Jarvis səsinizi tanıyacaq və cavab verəcək.</p>
+            <p>Aşağıdakı mikrofon düyməsinə basaraq səsinizi yazdırın.</p>
         </div>
     """, unsafe_allow_html=True)
 
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        st.image("https://cdn-icons-png.flaticon.com/512/4712/4712109.png", width=180)
+        st.image("https://cdn-icons-png.flaticon.com/512/4712/4712109.png", width=160)
 
-    if st.button("❌ Səsli Rejimi Bağla", use_container_width=True):
+    if st.button("❌ Səsli Rejimi Bağla və Qayıt", use_container_width=True):
         st.session_state.mode = "chat"
         st.rerun()
 
-    # Saf və təmiz JavaScript kod 블oku (Xəta verməyən struktur)
-    voice_html = """
-    <div style="text-align: center; margin-top: 20px;">
-        <button id="start-btn" style="background-color: #ff4b4b; color: white; padding: 15px 30px; font-size: 18px; border: none; border-radius: 30px; cursor: pointer; font-weight: bold;">🎙️ Danışmağa Başla</button>
-        <p id="status" style="margin-top: 15px; font-size: 16px; color: #555;">Düyməyə basıb danışın...</p>
-        <p id="transcript" style="font-weight: bold; color: #333; margin-top: 10px;"></p>
-    </div>
+    st.markdown("---")
+    
+    # Yerli təhlükəsiz səs yazıcı (Streamlit Mic Recorder)
+    audio = mic_recorder(
+        start_prompt="🎙️ Danışmağa Başla (Mikrofonu Aç)",
+        stop_prompt="⏹️ Dayandır və Göndər",
+        just_once=False,
+        key='mic'
+    )
 
-    <script>
-        const startBtn = document.getElementById('start-btn');
-        const statusEl = document.getElementById('status');
-        const transcriptEl = document.getElementById('transcript');
-
-        let recognition;
-        if ('webkitSpeechRecognition' in window || 'speechRecognition' in window) {
-            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-            recognition = new SpeechRecognition();
-            recognition.lang = 'az-AZ';
-            recognition.interimResults = false;
-
-            startBtn.onclick = function() {
-                recognition.start();
-                statusEl.innerText = "Dinləyirəm... Danışın.";
-                transcriptEl.innerText = "";
-            };
-
-            recognition.onresult = function(event) {
-                const text = event.results[0][0].transcript;
-                transcriptEl.innerText = "Siz dediniz: " + text;
-                statusEl.innerText = "Jarvis cavab hazırlayır...";
-                
-                // Sadə cavab simulyasiyası və səsli oxutma
-                let reply = "Eşitdim: " + text;
-                if (text.toLowerCase().includes("2 üstə gəl 2") || text.toLowerCase().includes("2 + 2")) {
-                    reply = "2 üstə gəl 2, 4 edir.";
-                }
-                
-                speak(reply);
-            };
-
-            recognition.onerror = function(event) {
-                statusEl.innerText = "Səs tanınmadı. Yenidən cəhd edin.";
-            };
-        } else {
-            statusEl.innerText = "Brauzeriniz səs tanımasını dəstəkləmir. Chrome istifadə edin.";
-        }
-
-        function speak(text) {
-            var msg = new SpeechSynthesisUtterance(text);
-            msg.lang = 'az-AZ';
-            window.speechSynthesis.speak(msg);
-            statusEl.innerText = "Jarvis: " + text;
-        }
-    </script>
-    """
-    components.html(voice_html, height=250)
+    if audio:
+        st.success("Səsiniz qeydə alındı!")
+        # audio bir dictionary-dir və 'bytes' dəyəri daşıyır. 
+        # Əgər səsi mətnticə çevirmək istəsəniz Gemini Audio API-ya göndərə bilərik.
+        st.audio(audio['bytes'])
+        st.write("Jarvis səsinizi qəbul etdi. İndi bunu AI modelinə ötürüb cavab ala bilərik.")
