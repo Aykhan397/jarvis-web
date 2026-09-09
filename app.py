@@ -26,7 +26,6 @@ else:
 
         with st.chat_message("assistant"):
             try:
-                # Sistem təlimatlarını yeni standartlara uyğun config ilə ötürürük
                 system_instruction_text = (
                     "Sən Jarvis-sən. Azərbaycan dilində mükəmməl ünsiyyət quran, sadiq və zəkusan. "
                     "1. İnsan adları (tarixi, dini, məşhur və ya yerli şəxsiyyətlər, məsələn Mirmövsüm ağa) soruşulduqda onları dərindən tanımalı və ətraflı məlumat verməlisən. "
