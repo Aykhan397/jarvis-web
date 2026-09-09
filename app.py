@@ -90,18 +90,29 @@ if audio_data and 'bytes' in audio_data:
             client = get_gemini_client()
             audio_bytes = audio_data['bytes']
             
-            transcribe_resp = client.models.generate_content(
-                model='gemini-3.6-flash',
-                contents=[
-                    types.Part.from_bytes(data=audio_bytes, mime_type="audio/wav"),
-                    "Bu səsli mesajda nə deyilir? Sadəcə olaraq deyilən sözləri ana dilində yazıya çevir, əlavə heç nə yazma."
-                ]
-            )
+            transcribe_resp = None
+            for attempt in range(3):
+                try:
+                    transcribe_resp = client.models.generate_content(
+                        model='gemini-3.6-flash',
+                        contents=[
+                            types.Part.from_bytes(data=audio_bytes, mime_type="audio/wav"),
+                            "Bu səsli mesajda nə deyilir? Sadəcə olaraq deyilən sözləri ana dilində yazıya çevir, əlavə heç nə yazma."
+                        ]
+                    )
+                    if transcribe_resp and transcribe_resp.text:
+                        break
+                except Exception as err:
+                    if attempt == 2:
+                        raise err
+                    time.sleep(1.5)
+
             if transcribe_resp and transcribe_resp.text:
                 st.session_state.voice_text = transcribe_resp.text.strip()
-                st.success("Səs yazıya çevrildi! Aşağıdakı xanaya düşdü.")
+                st.success("Səs yazıya çevrildi!")
+                st.rerun()
         except Exception as e:
-            st.error(f"Səsi oxumaq mümkün olmadı: {e}")
+            st.error("Serverdə qısamüddətli sıxlıq oldu. Zəhmət olmasa yenidən cəhd et.")
 
 with st.form(key="chat_form", clear_on_submit=True):
     prompt = st.text_input("Jarvisə nəsə de və ya link yapışdır...", value=st.session_state.voice_text, placeholder="Məs: https://youtube.com/... bu videoda nə var?")
@@ -127,17 +138,26 @@ if submit_button and prompt:
             if img:
                 contents.append(img)
 
-            response = client.models.generate_content(
-                model='gemini-3.6-flash',
-                contents=contents,
-                config=types.GenerateContentConfig(
-                    system_instruction=system_instruction_text,
-                    temperature=0.1
-                )
-            )
-            if response and response.text:
-                response_text = response.text
-            else:
+            # 503 xətasına qarşı avtomatik təkrar cəhd mexanizmi (retry)
+            for attempt in range(3):
+                try:
+                    response = client.models.generate_content(
+                        model='gemini-3.6-flash',
+                        contents=contents,
+                        config=types.GenerateContentConfig(
+                            system_instruction=system_instruction_text,
+                            temperature=0.1
+                        )
+                    )
+                    if response and response.text:
+                        response_text = response.text
+                        break
+                except Exception as err:
+                    if attempt == 2:
+                        raise err
+                    time.sleep(1.5)
+
+            if not response_text:
                 response_text = "⚠️ Cavab alınmadı, yenidən cəhd edin."
 
         except Exception as e:
