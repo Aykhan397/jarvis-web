@@ -25,7 +25,6 @@ def get_gemini_client():
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# Səsli mesajdan gələn mətni yadda saxlamaq üçün state
 if "voice_text" not in st.session_state:
     st.session_state.voice_text = ""
 
@@ -40,7 +39,6 @@ system_instruction_text = (
 
 st.title("🤖 Jarvis AI")
 
-# Yuxarıda idarəetmə paneli (Şəkil və Söhbəti təmizlə)
 col_ctrl1, col_ctrl2 = st.columns([2, 1])
 with col_ctrl1:
     uploaded_file = st.file_uploader("Şəkil əlavə et (Analiz üçün)", type=["jpg", "jpeg", "png"], label_visibility="collapsed")
@@ -52,7 +50,6 @@ with col_ctrl2:
 
 st.markdown("---")
 
-# Mesaj tarixçəsi
 for idx, message in enumerate(st.session_state.messages):
     col_chat, col_action = st.columns([11, 1])
     
@@ -78,7 +75,6 @@ for idx, message in enumerate(st.session_state.messages):
         elif action == "Kopyala":
             st.code(message["content"], language="text")
 
-# Səsli qeyd yazmaq üçün mikrofon bloku (Danış düyməsi)
 st.write("🎙️ **Səsli mesaj yaz:** (Mikrofona bas, danış, səsin yazıya çevriləcək)")
 audio_data = mic_recorder(
     start_prompt="🔴 Başla (Danış)",
@@ -87,14 +83,12 @@ audio_data = mic_recorder(
     key='voice_input_btn'
 )
 
-# Əgər səs qeydə alındısa, onu mətə çevirmək üçün Gemini-ə göndəririk
 if audio_data and 'bytes' in audio_data:
     with st.spinner("Səs mətnə çevrilir..."):
         try:
             client = get_gemini_client()
             audio_bytes = audio_data['bytes']
             
-            # Səsi mətnə çevirmək üçün xüsusi sorğu
             transcribe_resp = client.models.generate_content(
                 model='gemini-2.0-flash',
                 contents=[
@@ -104,14 +98,12 @@ if audio_data and 'bytes' in audio_data:
             )
             if transcribe_resp and transcribe_resp.text:
                 st.session_state.voice_text = transcribe_resp.text.strip()
-                st.success(جو "Səs uğurla çevrildi! İndi aşağıdakı göndər oxuna basa bilərsən.")
+                st.success("Səs uğurla çevrildi! İndi aşağıdakı göndər oxuna basa bilərsən.")
         except Exception as e:
             st.error(f"Səsi oxumaq mümkün olmadı: {e}")
 
-# Mesaj yazma və ya səsdən gələn mətni göndərmə paneli
 prompt = st.chat_input("Jarvisə nəsə de...", value=st.session_state.voice_text)
 
-# Mesaj göndərildikdən sonra səs yaddaşını təmizləyirik
 if prompt:
     st.session_state.voice_text = ""
     img = Image.open(uploaded_file) if uploaded_file else None
