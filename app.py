@@ -75,7 +75,6 @@ for idx, message in enumerate(st.session_state.messages):
         elif action == "Kopyala":
             st.code(message["content"], language="text")
 
-# Səsli qeyd yazmaq üçün mikrofon bloku
 st.write("🎙️ **Səsli mesaj yaz:**")
 audio_data = mic_recorder(
     start_prompt="🔴 Başla (Danış)",
@@ -90,8 +89,9 @@ if audio_data and 'bytes' in audio_data:
             client = get_gemini_client()
             audio_bytes = audio_data['bytes']
             
+            # Model burada birbaşa gemini-3.6-flash olaraq yeniləndi
             transcribe_resp = client.models.generate_content(
-                model='gemini-2.0-flash',
+                model='gemini-3.6-flash',
                 contents=[
                     types.Part.from_bytes(data=audio_bytes, mime_type="audio/wav"),
                     "Bu səsli mesajda nə deyilir? Sadəcə olaraq deyilən sözləri ana dilində yazıya çevir, əlavə heç nə yazma."
@@ -103,7 +103,6 @@ if audio_data and 'bytes' in audio_data:
         except Exception as e:
             st.error(f"Səsi oxumaq mümkün olmadı: {e}")
 
-# Mətn daxiletmə sahəsi (Səsdən gələn mətn avtomatik bura dolur, istəsən redaktə edib ox düyməsinə kasa bilərsən)
 with st.form(key="chat_form", clear_on_submit=True):
     prompt = st.text_input("Jarvisə nəsə de...", value=st.session_state.voice_text, placeholder="Mesajınızı yazın və ya səslə daxil edin...")
     submit_button = st.form_submit_button("➔ Göndər")
