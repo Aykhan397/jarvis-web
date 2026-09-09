@@ -42,20 +42,19 @@ system_instruction_text = (
 
 st.title("🤖 Jarvis AI - Canlı Səsli Rejim")
 
-# Jarvis Loqosu
 col1, col2, col3 = st.columns([1, 2, 1])
 with col2:
     st.image("https://cdn-icons-png.flaticon.com/512/4712/4712109.png", width=160)
 
 st.markdown("""
-    <p style='text-align: center; color: gray;'>Aşağıdakı düyməyə basıb istənilən dildə danışın. Jarvis sizi dinləyəcək və kişi səsi ilə cavab verəcək.</p>
+    <p style='text-align: center; color: gray;'>Düyməyə basın, mikrofon icazəsi istədikdə <b>"İcazə ver"</b> seçin və danışın.</p>
 """, unsafe_allow_html=True)
 
-# Səsli danışıq üçün birbaşa JavaScript və Web Speech API (Mobil və kompüterdə mikrofonu birbaşa açır)
+# Təkmilləşdirilmiş birbaşa mikrofon icazəsi tələb edən JavaScript kodu
 voice_call_html = """
 <div style="text-align: center; margin-top: 20px;">
     <button id="mic-btn" style="background-color: #ff4b4b; color: white; padding: 16px 32px; font-size: 18px; border: none; border-radius: 35px; cursor: pointer; font-weight: bold; box-shadow: 0 4px 6px rgba(0,0,0,0.2);">🎙️ Danışmağa Başla</button>
-    <p id="status" style="margin-top: 15px; font-size: 16px; color: #333; font-weight: 500;">Mikrofona basıb sualınızı verin...</p>
+    <p id="status" style="margin-top: 15px; font-size: 16px; color: #333; font-weight: 500;">Düyməyə basaraq icazə verin...</p>
     <div id="box" style="background: #f1f3f4; padding: 15px; border-radius: 10px; margin-top: 15px; text-align: left; display: none;">
         <p><b>Siz:</b> <span id="user-text" style="color: #1a73e8;">-</span></p>
         <p><b>Jarvis:</b> <span id="jarvis-text" style="color: #34a853;">-</span></p>
@@ -69,68 +68,69 @@ voice_call_html = """
     const userTextEl = document.getElementById('user-text');
     const jarvisTextEl = document.getElementById('jarvis-text');
 
-    let recognition;
-    if ('webkitSpeechRecognition' in window || 'speechRecognition' in window) {
-        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        recognition = new SpeechRecognition();
-        recognition.lang = 'az-AZ'; // İstənilən dili avtomatik tanıması üçün daxil edə bilərsən
-        recognition.interimResults = false;
-
-        micBtn.onclick = function() {
-            try {
-                recognition.start();
-                statusEl.innerText = "🎙️ Dinləyirəm... Danışın.";
-                micBtn.style.backgroundColor = "#1abc9c";
-            } catch(e) {
-                console.log(e);
-            }
-        };
-
-        recognition.onresult = function(event) {
-            const text = event.results[0][0].transcript;
-            box.style.display = "block";
-            userTextEl.innerText = text;
-            statusEl.innerText = "⏳ Jarvis düşünür...";
-            micBtn.style.backgroundColor = "#ff4b4b";
-
-            // Python backend-ə göndərmək üçün Streamlit-in öz inputuna simulyasiya edirik
-            // Və ya birbaşa cavab veririk:
-            let reply = "Buyurun, sizi eşidirəm. Sualınız: " + text;
+    micBtn.onclick = async function() {
+        try {
+            statusEl.innerText = "🎤 Mikrofona icazə tələb olunur...";
+            // Birbaşa brauzerdən mikrofon axını tələb edirik ki, icazə pəncərəsi açılsın
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
             
-            // Sadə riyaziyyat testi
-            if(text.includes("2") && text.includes("2")) {
-                reply = "2 üstə gəl 2, 4 edir.";
+            statusEl.innerText = "🎙️ Dinləyirəm... Danışın.";
+            micBtn.style.backgroundColor = "#1abc9c";
+
+            let recognition;
+            if ('webkitSpeechRecognition' in window || 'speechRecognition' in window) {
+                const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                recognition = new SpeechRecognition();
+                recognition.lang = 'az-AZ';
+                recognition.interimResults = false;
+
+                recognition.onresult = function(event) {
+                    const text = event.results[0][0].transcript;
+                    box.style.display = "block";
+                    userTextEl.innerText = text;
+                    statusEl.innerText = "⏳ Jarvis düşünür...";
+                    micBtn.style.backgroundColor = "#ff4b4b";
+
+                    let reply = "Buyurun, sizi eşidirəm: " + text;
+                    if(text.toLowerCase().includes("2") && text.toLowerCase().includes("2")) {
+                        reply = "2 üstə gəl 2, 4 edir.";
+                    }
+
+                    jarvisTextEl.innerText = reply;
+                    statusEl.innerText = "🗣️ Jarvis danışır...";
+                    speakKishiSəsi(reply);
+                };
+
+                recognition.onerror = function(event) {
+                    statusEl.innerText = "⚠️ Səs tanınmadı. Yenidən cəhd edin.";
+                    micBtn.style.backgroundColor = "#ff4b4b";
+                };
+
+                recognition.start();
+            } else {
+                statusEl.innerText = "⚠️ Brauzeriniz səs tanınmasını dəstəkləmir.";
             }
 
-            jarvisTextEl.innerText = reply;
-            statusEl.innerText = "🗣️ Jarvis danışır...";
-            speakKishiSəsi(reply);
-        };
-
-        recognition.onerror = function(event) {
-            statusEl.innerText = "⚠️ Səs tanınmadı və ya mikrofonə icazə verilmədi. Yenidən cəhd edin.";
-            micBtn.style.backgroundColor = "#ff4b4b";
-        };
-    } else {
-        statusEl.innerText = "⚠️ Brauzeriniz səs tanımasını dəstəkləmir. Google Chrome istifadə edin.";
-    }
+        } catch (err) {
+            statusEl.innerText = "❌ Mikrofon icazəsi rədd edildi və ya dəstəklənmir.";
+            console.error(err);
+        }
+    };
 
     function speakKishiSəsi(text) {
         var msg = new SpeechSynthesisUtterance(text);
         msg.lang = 'az-AZ';
         
-        // Kişi səsi tapmaq üçün brauzerin səslərini yoxlayırıq
         let voices = window.speechSynthesis.getVoices();
         for(let i = 0; i < voices.length; i++) {
             if(voices[i].lang.includes('az') || voices[i].lang.includes('tr')) {
-                // Əgər kişi səsi adı varsa seçirik (adətən default səslər kişi və ya neytral olur)
                 msg.voice = voices[i];
                 break;
             }
         }
         
-        msg.rate = 1.0; // Danışıq sürəti
-        msg.pitch = 0.8; // Səsin tonunu aşağı (kişi səsinə bənzər) edirik
+        msg.rate = 1.0;
+        msg.pitch = 0.8; // Kişi səsi üçün səs tonunu aşağı salırıq
         
         window.speechSynthesis.speak(msg);
         msg.onend = function() {
@@ -142,7 +142,6 @@ voice_call_html = """
 
 components.html(voice_call_html, height=350)
 
-# Yazışma tarixçəsi və əsas chat sistemi aşağıda da işləməyə davam edir
 st.markdown("---")
 st.subheader("💬 Yazılı Söhbət Tarixçəsi")
 
