@@ -27,7 +27,6 @@ system_instruction_text = (
     "4. Sualları gecikdirmədən, dərhal və dəqiq cavablandır."
 )
 
-# Sol tərəfdə həmişə görünən söhbət tarixçəsi paneli
 with st.sidebar:
     st.title("💬 Söhbətlər")
     if st.button("➕ Yeni Söhbət", use_container_width=True):
@@ -94,7 +93,7 @@ if audio_data and 'bytes' in audio_data:
             for attempt in range(3):
                 try:
                     transcribe_resp = client.models.generate_content(
-                        model='gemini-3.6-flash',
+                        model='gemini-3.6',
                         contents=[
                             types.Part.from_bytes(data=audio_bytes, mime_type="audio/wav"),
                             "Bu səsli mesajda nə deyilir? Sadəcə olaraq deyilən sözləri ana dilində yazıya çevir, əlavə heç nə yazma."
@@ -105,14 +104,14 @@ if audio_data and 'bytes' in audio_data:
                 except Exception as err:
                     if attempt == 2:
                         raise err
-                    time.sleep(1.5)
+                    time.sleep(2)
 
             if transcribe_resp and transcribe_resp.text:
                 st.session_state.voice_text = transcribe_resp.text.strip()
                 st.success("Səs yazıya çevrildi!")
                 st.rerun()
         except Exception as e:
-            st.error("Serverdə qısamüddətli sıxlıq oldu. Zəhmət olmasa yenidən cəhd et.")
+            st.error("Serverdə yüklənmə və ya limit xətası oldu. Bir az gözləyib yenidən cəhd et.")
 
 with st.form(key="chat_form", clear_on_submit=True):
     prompt = st.text_input("Jarvisə nəsə de və ya link yapışdır...", value=st.session_state.voice_text, placeholder="Məs: https://youtube.com/... bu videoda nə var?")
@@ -138,11 +137,10 @@ if submit_button and prompt:
             if img:
                 contents.append(img)
 
-            # 503 xətasına qarşı avtomatik təkrar cəhd mexanizmi (retry)
             for attempt in range(3):
                 try:
                     response = client.models.generate_content(
-                        model='gemini-3.6-flash',
+                        model='gemini-3.6',
                         contents=contents,
                         config=types.GenerateContentConfig(
                             system_instruction=system_instruction_text,
@@ -155,7 +153,7 @@ if submit_button and prompt:
                 except Exception as err:
                     if attempt == 2:
                         raise err
-                    time.sleep(1.5)
+                    time.sleep(3)
 
             if not response_text:
                 response_text = "⚠️ Cavab alınmadı, yenidən cəhd edin."
