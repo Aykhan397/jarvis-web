@@ -7,13 +7,17 @@ from streamlit_mic_recorder import mic_recorder
 
 st.set_page_config(page_title="Jarvis AI", page_icon="🤖", layout="centered")
 
+# "Manage app" və bütün Streamlit idarəetmə elementlərini tam gizlədən güclü CSS
 hide_streamlit_style = """
     <style>
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-    .viewerBadge_container__1QSob {display: none !important;}
-    div[data-testid="stStatusWidget"] {visibility: hidden;}
-    header {visibility: hidden;}
+    #MainMenu {visibility: hidden !important;}
+    footer {visibility: hidden !important;}
+    header {visibility: hidden !important;}
+    .stDeployButton {display: none !important;}
+    [data-testid="stToolbar"] {visibility: hidden !important; display: none !important;}
+    [data-testid="manage-app-button"] {display: none !important;}
+    .viewerBadge_container__1QSob {display: none !important !important;}
+    div[data-testid="stStatusWidget"] {visibility: hidden !important;}
     </style>
 """
 st.markdown(hide_streamlit_style, unsafe_allow_html=True)
@@ -28,16 +32,33 @@ if "messages" not in st.session_state:
 if "voice_text" not in st.session_state:
     st.session_state.voice_text = ""
 
-# Link və YouTube analizi bacarığı əlavə olunmuş sistem təlimatı
 system_instruction_text = (
     "Sən Jarvis-sən. Azərbaycan dilində və istənilən digər dildə mükəmməl ünsiyyət quran, sadiq, son dərəcə zəkusan. "
     "Həmişə qısa, lakonik, sürətli və dəqiq cavablar ver. Artıq-əskik cümlələr yazma. "
     "1. İnsan adları soruşulduqda onları dərindən tanımalı və qısa məlumat verməlisən. "
     "2. Hər hansı bir məkan və ya ziyarətgah adı çəkildikdə cavabda mütləq həmin yerin birbaşa kliklənə bilən Google Maps linkini əlavə et: "
     "[Xəritədə bax](https://maps.google.com/?q=yerin_adi). "
-    "3. İstifadəçi YouTube linki (və ya Shorts) göndərdikdə həmin videonun kanalını, başlığını, məzmununu və əgər varsa içindəki mahnı/musiqi haqqında məlumatı dərhal təhlil edib ətraflı və səliqəli şəkildə izah et. "
+    "3. İstifadəçi YouTube linki (və ya Shorts) göndərdikdə həmin videonun kanalını, başlığını, məzmununu və əgər varsa içindəki mahnı/musiqi haqqında məlumatı dərhal təhlil et. "
     "4. Sualları gecikdirmədən, dərhal və dəqiq cavablandır."
 )
+
+# Sol tərəfdə söhbət tarixçəsi (panel)
+with st.sidebar:
+    st.title("💬 Söhbət Paneli")
+    st.markdown("---")
+    if st.button("🗑️ Yeni Söhbət / Təmizlə", use_container_width=True):
+        st.session_state.messages = []
+        st.session_state.voice_text = ""
+        st.rerun()
+    
+    st.markdown("### Son Sual / Mesajlar")
+    if st.session_state.messages:
+        for i, m in enumerate(st.session_state.messages):
+            if m["role"] == "user":
+                preview = m["content"][:30] + "..." if len(m["content"]) > 30 else m["content"]
+                st.text(f"• {preview}")
+    else:
+        st.caption("Hələ ki söhbət tarixçəsi yoxdur.")
 
 st.title("🤖 Jarvis AI")
 
