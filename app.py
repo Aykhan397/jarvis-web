@@ -5,9 +5,10 @@ from PIL import Image
 import time
 from streamlit_mic_recorder import mic_recorder
 
-st.set_page_config(page_title="Jarvis AI", page_icon="🤖", layout="centered")
+# Geniş ekran rejimi (sidebar-ı səliqəli idarə etmək üçün)
+st.set_page_config(page_title="Jarvis AI", page_icon="🤖", layout="wide")
 
-# "Manage app" və bütün Streamlit idarəetmə elementlərini tam gizlədən güclü CSS
+# "Manage app" və Streamlit menyularını tamamilə gizlədən CSS
 hide_streamlit_style = """
     <style>
     #MainMenu {visibility: hidden !important;}
@@ -42,24 +43,26 @@ system_instruction_text = (
     "4. Sualları gecikdirmədən, dərhal və dəqiq cavablandır."
 )
 
-# Sol tərəfdə söhbət tarixçəsi (panel)
+# Sol tərəfdə tətbiqin özünün səliqəli söhbət paneli (tarixçəsi)
 with st.sidebar:
-    st.title("💬 Söhbət Paneli")
+    st.title("💬 Söhbət Tarixçəsi")
     st.markdown("---")
-    if st.button("🗑️ Yeni Söhbət / Təmizlə", use_container_width=True):
+    
+    if st.button("🗑️ Yeni Söhbət", use_container_width=True):
         st.session_state.messages = []
         st.session_state.voice_text = ""
         st.rerun()
     
-    st.markdown("### Son Sual / Mesajlar")
+    st.markdown("### Keçmiş Suallar")
     if st.session_state.messages:
-        for i, m in enumerate(st.session_state.messages):
+        for idx, m in enumerate(st.session_state.messages):
             if m["role"] == "user":
-                preview = m["content"][:30] + "..." if len(m["content"]) > 30 else m["content"]
-                st.text(f"• {preview}")
+                preview = m["content"][:25] + "..." if len(m["content"]) > 25 else m["content"]
+                st.write(f"▫️ {preview}")
     else:
-        st.caption("Hələ ki söhbət tarixçəsi yoxdur.")
+        st.caption("Hələ ki söhbət yoxdur.")
 
+# Əsas ekran hissəsi
 st.title("🤖 Jarvis AI")
 
 col_ctrl1, col_ctrl2 = st.columns([2, 1])
