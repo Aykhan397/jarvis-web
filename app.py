@@ -42,7 +42,7 @@ system_instruction_text = (
 
 st.title("🤖 Jarvis AI")
 
-# Söhbət tarixçəsini göstəririk və hər mesajın yanında silmə düyməsi qoyuruq
+# Söhbət tarixçəsini göstəririk və hər mesajın yanında silmə düyməsi qoyuruق
 for idx, message in enumerate(st.session_state.messages):
     col_msg, col_del = st.columns([10, 1])
     
@@ -53,9 +53,7 @@ for idx, message in enumerate(st.session_state.messages):
             st.markdown(message["content"])
             
     with col_del:
-        # Hər mesajı ayrı-ayrılıqda silmək üçün kiçik səbət düyməsi
         if st.button("🗑️", key=f"del_{idx}", help="Bu mesajı sil"):
-            # İstifadəçi mesajı və ya ona uyğun cavab silinərkən siyahıdan çıxarılır
             st.session_state.messages.pop(idx)
             st.rerun()
 
@@ -91,4 +89,5 @@ if prompt := st.chat_input("Jarvisə nəsə de..."):
             st.rerun()
             
         except Exception as e:
-            st.error("Serverlə əlaqə zamanı müvəqqəti xəta baş verdi. Zəhmət olmasa yenidən cəhd edin.")
+            # Xətanın səbəbini birbaşa ekranda göstəririk ki, problemi dərhal görək
+            st.error(f"Xəta baş verdi: {e}")
