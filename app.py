@@ -1,15 +1,33 @@
 import streamlit as st
 from google import genai
 from google.genai import types
+from openai import OpenAI
+import anthropic
 from PIL import Image
 
-st.set_page_config(page_title="Jarvis AI - Vision", page_icon="🤖")
+st.set_page_config(page_title="Jarvis AI - Multi-Model & Vision", page_icon="🤖")
 st.title("🤖 Jarvis AI Assistant")
 
 @st.cache_resource
 def get_gemini_client(api_key):
     return genai.Client(api_key=api_key)
 
+@st.cache_resource
+def get_openai_client(api_key):
+    return OpenAI(api_key=api_key)
+
+@st.cache_resource
+def get_anthropic_client(api_key):
+    return anthropic.Anthropic(api_key=api_key)
+
+# Sol paneldən model seçimi
+st.sidebar.title("Model Seçimi")
+model_choice = st.sidebar.selectbox(
+    "Süni intellekt modelini seç:",
+    ["Google Gemini (Flash)", "ChatGPT (OpenAI)", "Claude (Anthropic)"]
+)
+
+# Şəkil yükləmək üçün fayl seçicisi
 uploaded_file = st.sidebar.file_uploader("Şəkil yüklə (İstəyə bağlı)", type=["jpg", "jpeg", "png"])
 
 system_instruction_text = (
@@ -41,26 +59,61 @@ if prompt := st.chat_input("Jarvis-ə yaz və ya şəkil ilə sual ver..."):
         st.markdown(prompt)
 
     with st.chat_message("assistant"):
+        response_text = ""
+        
         try:
-            api_key = st.secrets.get("GEMINI_API_KEY")
-            if not api_key:
-                st.error("Gemini API açarı tapılmadı!")
-            else:
-                client = get_gemini_client(api_key)
-                
-                contents = [prompt]
-                if img:
-                    contents.append(img)
-                    
-                response = client.models.generate_content(
-                    model='gemini-3.6-flash',
-                    contents=contents,
-                    config=types.GenerateContentConfig(
-                        system_instruction=system_instruction_text,
-                    ),
-                )
-                response_text = response.text
-                
+            # 1. Google Gemini
+            if model_choice == "Google Gemini (Flash)":
+                api_key = st.secrets.get("GEMINI_API_KEY")
+                if not api_key:
+                    st.error("Gemini API açarı tapılmadı!")
+                else:
+                    client = get_gemini_client(api_key)
+                    contents = [prompt]
+                    if img:
+                        contents.append(img)
+                        
+                    response = client.models.generate_content(
+                        model='gemini-3.6-flash',
+                        contents=contents,
+                        config=types.GenerateContentConfig(
+                            system_instruction=system_instruction_text,
+                        ),
+                    )
+                    response_text = response.text
+
+            # 2. ChatGPT (OpenAI)
+            elif model_choice == "ChatGPT (OpenAI)":
+                api_key = st.secrets.get("OPENAI_API_KEY")
+                if not api_key:
+                    st.error("OpenAI API açarı tapılmadı!")
+                else:
+                    client = get_openai_client(api_key)
+                    response = client.chat.completions.create(
+                        model="gpt-4o-mini",
+                        messages=[
+                            {"role": "system", "content": system_instruction_text},
+                            {"role": "user", "content": prompt}
+                        ]
+                    )
+                    response_text = response.choices[0].message.content
+
+            # 3. Claude (Anthropic)
+            elif model_choice == "Claude (Anthropic)":
+                api_key = st.secrets.get("ANTHROPIC_API_KEY")
+                if not api_key:
+                    st.error("Anthropic API açarı tapılmadı!")
+                else:
+                    client = get_anthropic_client(api_key)
+                    response = client.messages.create(
+                        model="claude-3-5-haiku-20241022",
+                        max_tokens=1024,
+                        system=system_instruction_text,
+                        messages=[{"role": "user", "content": prompt}]
+                    )
+                    response_text = response.content[0].text
+
+            if response_text:
                 st.markdown(response_text)
                 st.session_state.messages.append({"role": "assistant", "content": response_text, "image": None})
 
