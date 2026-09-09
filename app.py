@@ -66,31 +66,46 @@ if prompt := st.chat_input("Jarvisə nəsə de..."):
         st.markdown(prompt)
 
     with st.chat_message("assistant"):
-        try:
-            client = get_gemini_client()
-            contents = [prompt]
-            if img:
-                contents.append(img)
+        response_text = None
+        client = get_gemini_client()
+        contents = [prompt]
+        if img:
+            contents.append(img)
 
-            # Qısa gecikmə əlavə edirik ki, 429 limitinə düşmə ehtimalı azalsın
-            time.sleep(0.5)
-
-            response = client.models.generate_content(
-                model='gemini-3.6-flash',
-                contents=contents,
-                config=types.GenerateContentConfig(
-                    system_instruction=system_instruction_text,
-                    temperature=0.2
+        # 429 xətasına qarşı 3 dəfəyə qədər təkrar cəhd etmə mexanizmi (Retry Logic)
+        max_retries = 3
+        success = False
+        
+        for attempt in range(max_retries):
+            try:
+                # Hər sorğudan əvvəl qısa fasilə
+                if attempt > 0:
+                    time.sleep(3 * attempt) # Hər dəfə gözləmə müddətini artırırıq
+                
+                response = client.models.generate_content(
+                    model='gemini-3.6-flash',
+                    contents=contents,
+                    config=types.GenerateContentConfig(
+                        system_instruction=system_instruction_text,
+                        temperature=0.2
+                    )
                 )
-            )
-            response_text = response.text
+                response_text = response.text
+                success = True
+                break
+            except Exception as e:
+                if "429" in str(e) and attempt < max_retries - 1:
+                    continue # Əgər 429-dursa və limit bitməyibsə, dövrü davam etdirib yenidən yoxlayır
+                else:
+                    error_msg = str(e)
+                    break
+
+        if success and response_text:
             st.markdown(response_text)
             st.session_state.messages.append({"role": "assistant", "content": response_text, "image": None})
             st.rerun()
-            
-        except Exception as e:
-            error_str = str(e)
-            if "429" in error_str:
-                st.error("⚠️ **Limit aşıldı (429 Xətası):** Google AI Studio API açarınızın dəqiqəlik sorğu limiti dolub. Zəhmət olmasa Google AI Studio-dan yeni bir API açarı yaradın və `secrets.toml` faylına yazın.")
+        else:
+            if "429" in locals().get('error_msg', '') or not success:
+                st.error("⚠️ **Server məşğuldur (429 Limit Xətası):** Pulsuz API limitinə toxunuldu. Zəhmət olmasa 10-15 saniyə gözləyib yenidən yazın və ya Google AI Studio-da hesabınıza ödənişli (pay-as-you-go) plan əlavə edin.")
             else:
-                st.error(f"Xəta baş verdi: {e}")
+                st.error(f"Xəta baş verdi: {locals().get('error_msg', 'Naməlum xəta')}")
