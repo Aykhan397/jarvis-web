@@ -4,8 +4,11 @@ from google.genai import types
 from openai import OpenAI
 import anthropic
 from PIL import Image
+from streamlit_mic_recorder import mic_recorder
+import speech_recognition as sr
+import io
 
-st.set_page_config(page_title="Jarvis AI - Multi-Model & Vision", page_icon="🤖")
+st.set_page_config(page_title="Jarvis AI - Voice & Multi-Model", page_icon="🤖")
 st.title("🤖 Jarvis AI Assistant")
 
 @st.cache_resource
@@ -20,15 +23,21 @@ def get_openai_client(api_key):
 def get_anthropic_client(api_key):
     return anthropic.Anthropic(api_key=api_key)
 
-# Sol paneldən model seçimi
-st.sidebar.title("Model Seçimi")
+# Sol paneldən model və funksiyalar
+st.sidebar.title("Parametrlər")
 model_choice = st.sidebar.selectbox(
     "Süni intellekt modelini seç:",
     ["Google Gemini (Flash)", "ChatGPT (OpenAI)", "Claude (Anthropic)"]
 )
 
-# Şəkil yükləmək üçün fayl seçicisi
 uploaded_file = st.sidebar.file_uploader("Şəkil yüklə (İstəyə bağlı)", type=["jpg", "jpeg", "png"])
+
+st.sidebar.markdown("---")
+st.sidebar.subheader("Səsli İdarəetmə")
+st.sidebar.write("Mikrofona basaraq səslə sual ver:")
+
+# Mikrofon səsyazma komponenti
+audio_data = mic_recorder(start_prompt="🔴 Danışmağa başla", stop_prompt="⏹️ Dayandır", key='mic')
 
 system_instruction_text = (
     "Sən Jarvis-sən. Azərbaycan dilində mükəmməl ünsiyyət quran, sadiq və zəkusan. "
@@ -46,7 +55,26 @@ for message in st.session_state.messages:
             st.image(message["image"], width=300)
         st.markdown(message["content"])
 
-if prompt := st.chat_input("Jarvis-ə yaz və ya şəkil ilə sual ver..."):
+# Səsli mesajı mətnetmə (Speech to Text) funksiyası
+prompt = None
+if audio_data:
+    try:
+        audio_bytes = audio_data['bytes']
+        r = sr.Recognizer()
+        audio_file = sr.AudioFile(io.BytesIO(audio_bytes))
+        with audio_file as source:
+            audio_content = r.record(source)
+            # Azərbaycan dili üçün səs tanıma (az-AZ)
+            prompt = r.recognize_google(audio_content, language="az-AZ")
+    except Exception as e:
+        st.sidebar.error("Səs mətə çevrilə bilmədi. Zəhmət olmasa yenidən cəhd edin.")
+
+# Əgər əllə yazıbsa prompt həm də chat_input-dan gəlir
+chat_input_prompt = st.chat_input("Jarvis-ə yaz və ya yuxarıdan səslə soruş...")
+if chat_input_prompt:
+    prompt = chat_input_prompt
+
+if prompt:
     img = None
     if uploaded_file is not None:
         img = Image.open(uploaded_file)
@@ -62,7 +90,6 @@ if prompt := st.chat_input("Jarvis-ə yaz və ya şəkil ilə sual ver..."):
         response_text = ""
         
         try:
-            # 1. Google Gemini
             if model_choice == "Google Gemini (Flash)":
                 api_key = st.secrets.get("GEMINI_API_KEY")
                 if not api_key:
@@ -82,7 +109,6 @@ if prompt := st.chat_input("Jarvis-ə yaz və ya şəkil ilə sual ver..."):
                     )
                     response_text = response.text
 
-            # 2. ChatGPT (OpenAI)
             elif model_choice == "ChatGPT (OpenAI)":
                 api_key = st.secrets.get("OPENAI_API_KEY")
                 if not api_key:
@@ -98,7 +124,6 @@ if prompt := st.chat_input("Jarvis-ə yaz və ya şəkil ilə sual ver..."):
                     )
                     response_text = response.choices[0].message.content
 
-            # 3. Claude (Anthropic)
             elif model_choice == "Claude (Anthropic)":
                 api_key = st.secrets.get("ANTHROPIC_API_KEY")
                 if not api_key:
