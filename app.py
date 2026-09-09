@@ -4,8 +4,6 @@ from google.genai import types
 from PIL import Image
 import time
 from streamlit_mic_recorder import mic_recorder
-from gtts import gTTS
-import os
 
 st.set_page_config(page_title="Jarvis AI", page_icon="🤖", layout="wide")
 
@@ -64,10 +62,6 @@ for idx, message in enumerate(st.session_state.messages):
                 st.audio(message["audio_bytes"], format="audio/wav")
             st.markdown(message["content"], unsafe_allow_html=True)
             
-            if message["role"] == "assistant" and "tts_file" in message and message["tts_file"]:
-                if os.path.exists(message["tts_file"]):
-                    st.audio(message["tts_file"], format="audio/mp3", autoplay=True)
-            
     with col_action:
         action = st.selectbox(
             "⚙️", 
@@ -96,25 +90,13 @@ if audio_data and 'bytes' in audio_data:
             client = get_gemini_client()
             audio_bytes = audio_data['bytes']
             
-            transcribe_resp = None
-            # Əvvəlcə 3.6-nı yoxlayırıq, xəta versə 2.5-ə keçirik (Failover mexanizmi)
-            try:
-                transcribe_resp = client.models.generate_content(
-                    model='gemini-3.6-flash',
-                    contents=[
-                        types.Part.from_bytes(data=audio_bytes, mime_type="audio/wav"),
-                        "Bu səsli mesajda nə deyilir? Sadəcə olaraq deyilən sözləri ana dilində yazıya çevir, əlavə heç nə yazma."
-                    ]
-                )
-            except Exception:
-                transcribe_resp = client.models.generate_content(
-                    model='gemini-2.5-flash',
-                    contents=[
-                        types.Part.from_bytes(data=audio_bytes, mime_type="audio/wav"),
-                        "Bu səsli mesajda nə deyilir? Sadəcə olaraq deyilən sözləri ana dilində yazıya çevir, əlavə heç nə yazma."
-                    ]
-                )
-
+            transcribe_resp = client.models.generate_content(
+                model='gemini-3.6-flash',
+                contents=[
+                    types.Part.from_bytes(data=audio_bytes, mime_type="audio/wav"),
+                    "Bu səsli mesajda nə deyilir? Sadəcə olaraq deyilən sözləri ana dilində yazıya çevir, əlavə heç nə yazma."
+                ]
+            )
             if transcribe_resp and transcribe_resp.text:
                 st.session_state.voice_text = transcribe_resp.text.strip()
                 st.success("Səs yazıya çevrildi! Aşağıdakı xanaya düşdü.")
@@ -138,7 +120,6 @@ if submit_button and prompt:
 
     with st.chat_message("assistant"):
         response_text = None
-        tts_path = None
         
         try:
             client = get_gemini_client()
@@ -146,33 +127,16 @@ if submit_button and prompt:
             if img:
                 contents.append(img)
 
-            response = None
-            try:
-                response = client.models.generate_content(
-                    model='gemini-3.6-flash',
-                    contents=contents,
-                    config=types.GenerateContentConfig(
-                        system_instruction=system_instruction_text,
-                        temperature=0.1
-                    )
+            response = client.models.generate_content(
+                model='gemini-3.6-flash',
+                contents=contents,
+                config=types.GenerateContentConfig(
+                    system_instruction=system_instruction_text,
+                    temperature=0.1
                 )
-            except Exception:
-                response = client.models.generate_content(
-                    model='gemini-2.5-flash',
-                    contents=contents,
-                    config=types.GenerateContentConfig(
-                        system_instruction=system_instruction_text,
-                        temperature=0.1
-                    )
-                )
-
+            )
             if response and response.text:
                 response_text = response.text
-                
-                tts = gTTS(text=response_text, lang='az', slow=False)
-                tts_path = f"response_{time.time()}.mp3"
-                tts.save(tts_path)
-                
             else:
                 response_text = "⚠️ Cavab alınmadı, yenidən cəhd edin."
 
@@ -181,13 +145,5 @@ if submit_button and prompt:
 
         if response_text:
             st.markdown(response_text, unsafe_allow_html=True)
-            if tts_path and os.path.exists(tts_path):
-                st.audio(tts_path, format="audio/mp3", autoplay=True)
-                
-            st.session_state.messages.append({
-                "role": "assistant", 
-                "content": response_text, 
-                "image": None, 
-                "tts_file": tts_path
-            })
+            st.session_state.messages.append({"role": "assistant", "content": response_text, "image": None})
             st.rerun()
