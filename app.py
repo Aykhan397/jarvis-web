@@ -96,14 +96,25 @@ if audio_data and 'bytes' in audio_data:
             client = get_gemini_client()
             audio_bytes = audio_data['bytes']
             
-            transcribe_resp = client.models.generate_content(
-                model='gemini-3.6-flash',
-                contents=[
-                    types.Part.from_bytes(data=audio_bytes, mime_type="audio/wav"),
-                    "Bu səsli mesajda nə deyilir? Sadəcə olaraq deyilən sözləri ana dilində yazıya çevir, əlavə heç nə yazma."
-                ],
-                config=types.GenerateContentConfig(temperature=0.0)
-            )
+            transcribe_resp = None
+            # Əvvəlcə 3.6-nı yoxlayırıq, xəta versə 2.5-ə keçirik (Failover mexanizmi)
+            try:
+                transcribe_resp = client.models.generate_content(
+                    model='gemini-3.6-flash',
+                    contents=[
+                        types.Part.from_bytes(data=audio_bytes, mime_type="audio/wav"),
+                        "Bu səsli mesajda nə deyilir? Sadəcə olaraq deyilən sözləri ana dilində yazıya çevir, əlavə heç nə yazma."
+                    ]
+                )
+            except Exception:
+                transcribe_resp = client.models.generate_content(
+                    model='gemini-2.5-flash',
+                    contents=[
+                        types.Part.from_bytes(data=audio_bytes, mime_type="audio/wav"),
+                        "Bu səsli mesajda nə deyilir? Sadəcə olaraq deyilən sözləri ana dilində yazıya çevir, əlavə heç nə yazma."
+                    ]
+                )
+
             if transcribe_resp and transcribe_resp.text:
                 st.session_state.voice_text = transcribe_resp.text.strip()
                 st.success("Səs yazıya çevrildi! Aşağıdakı xanaya düşdü.")
@@ -135,14 +146,26 @@ if submit_button and prompt:
             if img:
                 contents.append(img)
 
-            response = client.models.generate_content(
-                model='gemini-3.6-flash',
-                contents=contents,
-                config=types.GenerateContentConfig(
-                    system_instruction=system_instruction_text,
-                    temperature=0.1
+            response = None
+            try:
+                response = client.models.generate_content(
+                    model='gemini-3.6-flash',
+                    contents=contents,
+                    config=types.GenerateContentConfig(
+                        system_instruction=system_instruction_text,
+                        temperature=0.1
+                    )
                 )
-            )
+            except Exception:
+                response = client.models.generate_content(
+                    model='gemini-2.5-flash',
+                    contents=contents,
+                    config=types.GenerateContentConfig(
+                        system_instruction=system_instruction_text,
+                        temperature=0.1
+                    )
+                )
+
             if response and response.text:
                 response_text = response.text
                 
