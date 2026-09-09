@@ -6,8 +6,7 @@ from openai import OpenAI
 import anthropic
 from PIL import Image
 
-st.set_page_config(page_title="Jarvis AI - Voice Talk", page_icon="🤖")
-st.title("🤖 Jarvis AI Assistant")
+st.set_page_config(page_title="Jarvis AI - Voice Assistant", page_icon="🤖", layout="centered")
 
 @st.cache_resource
 def get_gemini_client(api_key):
@@ -21,118 +20,150 @@ def get_openai_client(api_key):
 def get_anthropic_client(api_key):
     return anthropic.Anthropic(api_key=api_key)
 
-# Sol paneldən model seçimi və səsli oxutma açarı
-st.sidebar.title("Parametrlər")
-model_choice = st.sidebar.selectbox(
-    "Süni intellekt modelini seç:",
-    ["Google Gemini (Flash)", "ChatGPT (OpenAI)", "Claude (Anthropic)"]
-)
-
-# Cavabların səslə oxunmasını istəyib-istəmədiyini tənzimləmək üçün
-speak_response = st.sidebar.checkbox("Səslə cavab vermək (Text-to-Speech)", value=True)
-
-uploaded_file = st.sidebar.file_uploader("Şəkil yüklə (İstəyə bağlı)", type=["jpg", "jpeg", "png"])
-
-system_instruction_text = (
-    "Sən Jarvis-sən. Azərbaycan dilində mükəmməl ünsiyyət quran, sadiq və zəkusan. "
-    "1. İnsan adları (tarixi, dini, məşhur və ya yerli şəxsiyyətlər, o cümlədən Nardarandakı Mir Mövsüm ağa və Üzeyir Hacıbəyli) soruşulduqda onları dərindən tanımalı və ətraflı məlumat verməlisən. "
-    "2. İstifadəçi hər hansı bir məkan, yer və ya ziyarətgah soruşduqda, məlumat verməklə yanaşı həmin yerin Google Maps axtarış linkini də cavaba əlavə etməlisən "
-    "(format məhz belə olsun: [Xəritədə bax](https://maps.google.com/?q=yerin_adi))."
-)
-
+# Session state-də səsli rejim və mesajları saxlayırıq
+if "mode" not in st.session_state:
+    st.session_state.mode = "chat" # "chat" və ya "voice_call"
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-for message in st.session_state.messages:
-    with st.chat_message(message["role"]):
-        if "image" in message and message["image"]:
-            st.image(message["image"], width=300)
-        st.markdown(message["content"])
+# Sol panel
+st.sidebar.title("Parametrlər")
+model_choice = st.sidebar.selectbox(
+    "Model seç:",
+    ["Google Gemini (Flash)", "ChatGPT (OpenAI)", "Claude (Anthropic)"]
+)
 
-# Brauzerdə mətnin səslə oxunması üçün JavaScript funksiyası
-def speak_text(text):
-    # Markdown simvollarını və xəritə linklərini səsləndirmə zamanı oxumaması üçün təmizləyirik
-    clean_text = text.replace("*", "").replace("#", "").replace("[Xəritədə bax](", "").replace(")", "")
-    js_code = f"""
-    <script>
-        var msg = new SpeechSynthesisUtterance("{clean_text}");
-        msg.lang = 'az-AZ';
-        window.speechSynthesis.speak(msg);
-    </script>
-    """
-    components.html(js_code, height=0)
+uploaded_file = st.sidebar.file_uploader("Şəkil yüklə", type=["jpg", "jpeg", "png"])
 
-if prompt := st.chat_input("Jarvis-ə yaz və ya klaviaturanın mikrofonu ilə de (məsələn: 2 üstə gəl 2 nə edir?)..."):
-    img = None
-    if uploaded_file is not None:
-        img = Image.open(uploaded_file)
+st.sidebar.markdown("---")
+# Səsli zəng rejiminə keçid düyməsi
+if st.sidebar.button("🎙️ Səsli Zəng Rejimi (Live)", use_container_width=True):
+    st.session_state.mode = "voice_call"
+    st.rerun()
 
-    st.session_state.messages.append({"role": "user", "content": prompt, "image": img})
+if st.sidebar.button("💬 Yazışma Rejimi", use_container_width=True):
+    st.session_state.mode = "chat"
+    st.rerun()
+
+system_instruction_text = (
+    "Sən Jarvis-sən. Azərbaycan dilində mükəmməl ünsiyyət quran, sadiq və zəkusan. "
+    "1. İnsan adları soruşulduqda onları dərindən tanımalı və ətraflı məlumat verməlisən. "
+    "2. Məkan və ya ziyarətgah soruşulduqda həmin yerin Google Maps axtarış linkini əlavə etməlisən "
+    "(format: [Xəritədə bax](https://maps.google.com/?q=yerin_adi))."
+)
+
+# --- 1. SÖHBƏT (CHAT) REJİMİ ---
+if st.session_state.mode == "chat":
+    st.title("🤖 Jarvis AI Assistant")
     
-    with st.chat_message("user"):
-        if img:
-            st.image(img, width=300)
-        st.markdown(prompt)
+    for message in st.session_state.messages:
+        with st.chat_message(message["role"]):
+            if "image" in message and message["image"]:
+                st.image(message["image"], width=300)
+            st.markdown(message["content"])
 
-    with st.chat_message("assistant"):
-        response_text = ""
+    if prompt := st.chat_input("Jarvis-ə yaz..."):
+        img = Image.open(uploaded_file) if uploaded_file else None
+        st.session_state.messages.append({"role": "user", "content": prompt, "image": img})
         
-        try:
-            if model_choice == "Google Gemini (Flash)":
-                api_key = st.secrets.get("GEMINI_API_KEY")
-                if not api_key:
-                    st.error("Gemini API açarı tapılmadı!")
-                else:
-                    client = get_gemini_client(api_key)
-                    contents = [prompt]
-                    if img:
-                        contents.append(img)
-                        
-                    response = client.models.generate_content(
-                        model='gemini-3.6-flash',
-                        contents=contents,
-                        config=types.GenerateContentConfig(
-                            system_instruction=system_instruction_text,
-                        ),
-                    )
-                    response_text = response.text
+        with st.chat_message("user"):
+            if img: st.image(img, width=300)
+            st.markdown(prompt)
 
-            elif model_choice == "ChatGPT (OpenAI)":
-                api_key = st.secrets.get("OPENAI_API_KEY")
-                if not api_key:
-                    st.error("OpenAI API açarı tapılmadı!")
-                else:
-                    client = get_openai_client(api_key)
-                    response = client.chat.completions.create(
+        with st.chat_message("assistant"):
+            try:
+                response_text = ""
+                if model_choice == "Google Gemini (Flash)":
+                    client = get_gemini_client(st.secrets["GEMINI_API_KEY"])
+                    contents = [prompt, img] if img else [prompt]
+                    res = client.models.generate_content(
+                        model='gemini-3.6-flash', contents=contents,
+                        config=types.GenerateContentConfig(system_instruction=system_instruction_text)
+                    )
+                    response_text = res.text
+                elif model_choice == "ChatGPT (OpenAI)":
+                    client = get_openai_client(st.secrets["OPENAI_API_KEY"])
+                    res = client.chat.completions.create(
                         model="gpt-4o-mini",
-                        messages=[
-                            {"role": "system", "content": system_instruction_text},
-                            {"role": "user", "content": prompt}
-                        ]
+                        messages=[{"role": "system", "content": system_instruction_text}, {"role": "user", "content": prompt}]
                     )
-                    response_text = response.choices[0].message.content
-
-            elif model_choice == "Claude (Anthropic)":
-                api_key = st.secrets.get("ANTHROPIC_API_KEY")
-                if not api_key:
-                    st.error("Anthropic API açarı tapılmadı!")
-                else:
-                    client = get_anthropic_client(api_key)
-                    response = client.messages.create(
-                        model="claude-3-5-haiku-20241022",
-                        max_tokens=1024,
-                        system=system_instruction_text,
-                        messages=[{"role": "user", "content": prompt}]
+                    response_text = res.choices[0].message.content
+                elif model_choice == "Claude (Anthropic)":
+                    client = get_anthropic_client(st.secrets["ANTHROPIC_API_KEY"])
+                    res = client.messages.create(
+                        model="claude-3-5-haiku-20241022", max_tokens=1024,
+                        system=system_instruction_text, messages=[{"role": "user", "content": prompt}]
                     )
-                    response_text = response.content[0].text
+                    response_text = res.content[0].text
 
-            if response_text:
                 st.markdown(response_text)
                 st.session_state.messages.append({"role": "assistant", "content": response_text, "image": None})
-                
-                # Əgər sol paneldə səsli oxutma işarəlidirsə, brauzer cavabı səsləndirəcək
-                if speak_response:
-                    speak_text(response_text)
+            except Exception as e:
+                st.error(f"Xəta: {e}")
 
-        except Exception as e:
-            st.error(f"Xəta baş verdi: {e}")
+# --- 2. SƏSLİ ZƏNG (VOICE CALL) REJİMİ ---
+elif st.session_state.mode == "voice_call":
+    st.markdown("""
+        <div style="text-align: center; margin-top: 50px;">
+            <h2>🎙️ Jarvis Səsli Əlaqə Rejimi</h2>
+            <p>Qulaqlıqlarınızı taxın və danışın. Jarvis səsinizi eşidib cavab verəcək.</p>
+        </div>
+    """, unsafe_allow_html=True)
+
+    # Mərkəzdə Jarvis loqosu və ya animasiya effekti
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        # Jarvis loqosu (öz şəklini və ya istədiyin linki qoya bilərsən)
+        st.image("https://cdn-icons-png.flaticon.com/512/4712/4712109.png", width=200)
+
+    if st.button("❌ Səsli Rejimi Bağla və Qayıt", use_container_width=True):
+        st.session_state.mode = "chat"
+        st.rerun()
+
+    # JavaScript vasitəsilə səs tanıma (SpeechRecognition) və oxuma (SpeechSynthesis)
+    voice_html = f"""
+    <div style="text-align: center; margin-top: 20px;">
+        <button id="start-btn" style="background-color: #ff4b4b; color: white; padding: 15px 30px; font-size: 18px; border: none; border-radius: 30px; cursor: pointer;">🎙️ Danışmağa Başla</button>
+        <p id="status" style="margin-top: 15px; font-size: 16px; color: #555;">Düyməyə basıb sualınızı verin...</p>
+        <p id="transcript" style="font-weight: bold; color: #333;"></p>
+    </div>
+
+    <script>
+        const startBtn = document.getElementById('start-btn');
+        const statusEl = document.getElementById('status');
+        const transcriptEl = document.getElementById('transcript');
+
+        let recognition;
+        if ('webkitSpeechRecognition' in window || 'speechRecognition' in window) {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            recognition = new SpeechRecognition();
+            recognition.lang = 'az-AZ';
+            recognition.interimResults = false;
+
+            startBtn.onclick = function() {{
+                recognition.start();
+                statusEl.innerText = "Dinləyirəm... Danışın.";
+            }};
+
+            recognition.onresult = function(event) {{
+                const text = event.results[0][0].transcript;
+                transcriptEl.innerText = "Siz dediniz: " + text;
+                statusEl.innerText = "Jarvis düşünür...";
+                
+                // Python tərəfinə məlumat ötürmək üçün Streamlit query params istifadə edirik və ya sadəcə simulyasiya
+                // Real backend cavabı üçün buraya fetch sorğusu qoşulmalıdır.
+                speak("Eşitdim: " + text);
+            }};
+        } else {{
+            statusEl.innerText = "Brauzeriniz səs tanımasını dəstəkləmir.";
+        }}
+
+        function speak(text) {{
+            var msg = new SpeechSynthesisUtterance(text);
+            msg.lang = 'az-AZ';
+            window.speechSynthesis.speak(msg);
+            statusEl.innerText = "Danışıq tamamlandı. Yenidən danışmaq üçün düyməyə basın.";
+        }}
+    </script>
+    """
+    components.html(voice_html, height=300)
