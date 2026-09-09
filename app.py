@@ -6,12 +6,14 @@ import time
 
 st.set_page_config(page_title="Jarvis AI", page_icon="🤖", layout="centered")
 
+# Streamlit nişanlarını, footer-i və xarici elementləri gizlədən CSS
 hide_streamlit_style = """
     <style>
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     .viewerBadge_container__1QSob {display: none !important;}
     div[data-testid="stStatusWidget"] {visibility: hidden;}
+    header {visibility: hidden;}
     </style>
 """
 st.markdown(hide_streamlit_style, unsafe_allow_html=True)
@@ -23,6 +25,7 @@ def get_gemini_client():
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
+# Sol panel: Şəkil yükləmə və bütün tarixçəni təmizləmə
 st.sidebar.title("Jarvis İdarəetmə")
 uploaded_file = st.sidebar.file_uploader("Şəkil yüklə (Analiz üçün)", type=["jpg", "jpeg", "png"])
 
@@ -35,26 +38,41 @@ system_instruction_text = (
     "Sən Jarvis-sən. Azərbaycan dilində və istənilən digər dildə mükəmməl ünsiyyət quran, sadiq, son dərəcə zəkusan. "
     "Heç vaxt yalandan məlumat uydurma, həmişə dəqiq, faktlara əsaslanan və qısa/lakonik cavablar ver. "
     "1. İnsan adları soruşulduqda onları dərindən tanımalı və dəqiq məlumat verməlisən. "
-    "2. Məkan və ya ziyarətgah soruşulduqda həmin yerin Google Maps axtarış linkini mütləq əlavə etməlisən "
-    "(format: [Xəritədə bax](https://maps.google.com/?q=yerin_adi))."
+    "2. Məkan, obyekt və ya ziyarətgah soruşulduqda həmin yerin Google Maps axtarış linkini mütləq əlavə etməlisən "
+    "(format: [Xəritədə bax](https://maps.google.com/?q=yerin_adi)). "
+    "3. İstənilən dildə verilən sualları həmin dildə dəqiq cavablandır."
 )
 
 st.title("🤖 Jarvis AI")
 
+# Söhbət tarixçəsi və hər mesajın sağ üstündə idarəetmə menyusu (Kopyala / Sil)
 for idx, message in enumerate(st.session_state.messages):
-    col_msg, col_del = st.columns([10, 1])
+    # Mesajın başlıq hissəsində sağ tərəfdə kiçik menyu yaratmaq üçün sütunlar
+    col_chat, col_action = st.columns([12, 1])
     
-    with col_msg:
+    with col_chat:
         with st.chat_message(message["role"]):
             if "image" in message and message["image"]:
                 st.image(message["image"], width=300)
             st.markdown(message["content"])
             
-    with col_del:
-        if st.button("🗑️", key=f"del_{idx}", help="Bu mesajı sil"):
+    with col_action:
+        # Hər mesajın sağ üstündə yerləşən səliqəli açılan menyu (select_box əvəzinə pop-up effektli expander/menu)
+        action = st.selectbox(
+            "⚙️", 
+            ["Seç", "Sil", "Kopyala"], 
+            key=f"act_{idx}", 
+            label_visibility="collapsed"
+        )
+        
+        if action == "Sil":
             st.session_state.messages.pop(idx)
             st.rerun()
+        elif action == "Kopyala":
+            # Streamlit-də mətnin kopyalanması üçün qısa məlumat və ya kod bloku göstəririk
+            st.code(message["content"], language="text")
 
+# İstifadəçinin mesaj daxiletmə paneli
 if prompt := st.chat_input("Jarvisə nəsə de..."):
     img = Image.open(uploaded_file) if uploaded_file else None
     
@@ -67,45 +85,38 @@ if prompt := st.chat_input("Jarvisə nəsə de..."):
 
     with st.chat_message("assistant"):
         response_text = None
-        client = get_gemini_client()
-        contents = [prompt]
-        if img:
-            contents.append(img)
-
-        # 429 xətasına qarşı 3 dəfəyə qədər təkrar cəhd etmə mexanizmi (Retry Logic)
-        max_retries = 3
         success = False
         
-        for attempt in range(max_retries):
-            try:
-                # Hər sorğudan əvvəl qısa fasilə
-                if attempt > 0:
-                    time.sleep(3 * attempt) # Hər dəfə gözləmə müddətini artırırıq
-                
-                response = client.models.generate_content(
-                    model='gemini-3.6-flash',
-                    contents=contents,
-                    config=types.GenerateContentConfig(
-                        system_instruction=system_instruction_text,
-                        temperature=0.2
-                    )
+        try:
+            client = get_gemini_client()
+            contents = [prompt]
+            if img:
+                contents.append(img)
+
+            time.sleep(0.3)
+
+            # Gemini 3.6 Flash modeli ilə sürətli və dəqiq cavab
+            response = client.models.generate_content(
+                model='gemini-3.6-flash',
+                contents=contents,
+                config=types.GenerateContentConfig(
+                    system_instruction=system_instruction_text,
+                    temperature=0.2
                 )
-                response_text = response.text
+            )
+            response_text = response.text
+            success = True
+            
+        except Exception as e:
+            error_str = str(e)
+            if "429" in error_str:
+                response_text = "⚠️ **Server məşğuldur (Limit aşıldı):** Zəhmət olmasa bir neçə saniyə gözləyib yenidən yazın."
                 success = True
-                break
-            except Exception as e:
-                if "429" in str(e) and attempt < max_retries - 1:
-                    continue # Əgər 429-dursa və limit bitməyibsə, dövrü davam etdirib yenidən yoxlayır
-                else:
-                    error_msg = str(e)
-                    break
+            else:
+                response_text = f"Xəta baş verdi: {error_str}"
+                success = True
 
         if success and response_text:
             st.markdown(response_text)
             st.session_state.messages.append({"role": "assistant", "content": response_text, "image": None})
             st.rerun()
-        else:
-            if "429" in locals().get('error_msg', '') or not success:
-                st.error("⚠️ **Server məşğuldur (429 Limit Xətası):** Pulsuz API limitinə toxunuldu. Zəhmət olmasa 10-15 saniyə gözləyib yenidən yazın və ya Google AI Studio-da hesabınıza ödənişli (pay-as-you-go) plan əlavə edin.")
-            else:
-                st.error(f"Xəta baş verdi: {locals().get('error_msg', 'Naməlum xəta')}")
