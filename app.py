@@ -1,12 +1,11 @@
 import streamlit as st
-import streamlit.components.v1 as components
 from google import genai
 from google.genai import types
 from openai import OpenAI
 import anthropic
 from PIL import Image
 
-st.set_page_config(page_title="Jarvis AI - Voice Live", page_icon="🤖", layout="centered")
+st.set_page_config(page_title="Jarvis AI - Voice", page_icon="🤖", layout="centered")
 
 @st.cache_resource
 def get_gemini_client(api_key):
@@ -40,145 +39,80 @@ system_instruction_text = (
     "(format: [Xəritədə bax](https://maps.google.com/?q=yerin_adi))."
 )
 
-st.title("🤖 Jarvis AI - Canlı Səsli Rejim")
-
-col1, col2, col3 = st.columns([1, 2, 1])
-with col2:
-    st.image("https://cdn-icons-png.flaticon.com/512/4712/4712109.png", width=160)
+st.title("🤖 Jarvis AI - Səsli və Yazılı Rejim")
 
 st.markdown("""
-    <p style='text-align: center; color: gray;'>Düyməyə basın, mikrofon icazəsi istədikdə <b>"İcazə ver"</b> seçin və danışın.</p>
+    <p style='color: gray;'>Aşağıdakı mikrofon düyməsinə basıb danışın. Səsiniz qeyd olunub birbaşa Jarvisə göndəriləcək.</p>
 """, unsafe_allow_html=True)
 
-# Təkmilləşdirilmiş birbaşa mikrofon icazəsi tələb edən JavaScript kodu
-voice_call_html = """
-<div style="text-align: center; margin-top: 20px;">
-    <button id="mic-btn" style="background-color: #ff4b4b; color: white; padding: 16px 32px; font-size: 18px; border: none; border-radius: 35px; cursor: pointer; font-weight: bold; box-shadow: 0 4px 6px rgba(0,0,0,0.2);">🎙️ Danışmağa Başla</button>
-    <p id="status" style="margin-top: 15px; font-size: 16px; color: #333; font-weight: 500;">Düyməyə basaraq icazə verin...</p>
-    <div id="box" style="background: #f1f3f4; padding: 15px; border-radius: 10px; margin-top: 15px; text-align: left; display: none;">
-        <p><b>Siz:</b> <span id="user-text" style="color: #1a73e8;">-</span></p>
-        <p><b>Jarvis:</b> <span id="jarvis-text" style="color: #34a853;">-</span></p>
-    </div>
-</div>
+# Streamlit-in rəsmi daxili səs yazıcısı (Planşet və telefonlarda mükəmməl işləyir)
+audio_file = st.audio_input("🎙️ Danışmaq üçün buraya basın")
 
-<script>
-    const micBtn = document.getElementById('mic-btn');
-    const statusEl = document.getElementById('status');
-    const box = document.getElementById('box');
-    const userTextEl = document.getElementById('user-text');
-    const jarvisTextEl = document.getElementById('jarvis-text');
+user_input = None
 
-    micBtn.onclick = async function() {
-        try {
-            statusEl.innerText = "🎤 Mikrofona icazə tələb olunur...";
-            // Birbaşa brauzerdən mikrofon axını tələb edirik ki, icazə pəncərəsi açılsın
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+if audio_file is not None:
+    st.info("Səsiniz qəbul edildi, Jarvis dinləyir...")
+    audio_bytes = audio_file.read()
+    
+    try:
+        if model_choice == "Google Gemini (Flash)":
+            client = get_gemini_client(st.secrets["GEMINI_API_KEY"])
+            # Gemini birbaşa səsi (audio baytlarını) başa düşür və cavab verir
+            response = client.models.generate_content(
+                model='gemini-2.0-flash',
+                contents=[
+                    types.Part.from_bytes(data=audio_bytes, mime_type="audio/wav"),
+                    "Bu səsli mesajı dinlə və verilən təlimata uyğun olaraq Azərbaycan dilində (və ya danışılan dildə) cavab ver."
+                ],
+                config=types.GenerateContentConfig(system_instruction=system_instruction_text)
+            )
+            user_input = "[Səsli Mesaj]"
+            response_text = response.text
+        else:
+            response_text = "Səsli giriş hazırda ən yaxşı Google Gemini modeli ilə işləyir. Zəhmət olmasa yuxarıdan modeli Gemini seçin."
             
-            statusEl.innerText = "🎙️ Dinləyirəm... Danışın.";
-            micBtn.style.backgroundColor = "#1abc9c";
+        if model_choice == "Google Gemini (Flash)":
+            st.session_state.messages.append({"role": "user", "content": "🎤 (Səsli sual göndərildi)"})
+            st.session_state.messages.append({"role": "assistant", "content": response_text})
+            
+    except Exception as e:
+            st.error(f"Xəta baş verdi: {e}")
 
-            let recognition;
-            if ('webkitSpeechRecognition' in window || 'speechRecognition' in window) {
-                const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-                recognition = new SpeechRecognition();
-                recognition.lang = 'az-AZ';
-                recognition.interimResults = false;
+# Əgər yazılı yazıbsa
+if prompt := st.chat_input("Və ya buraya yazı ilə yaza bilərsən..."):
+    user_input = prompt
+    try:
+        if model_choice == "Google Gemini (Flash)":
+            client = get_gemini_client(st.secrets["GEMINI_API_KEY"])
+            res = client.models.generate_content(
+                model='gemini-3.6-flash', contents=prompt,
+                config=types.GenerateContentConfig(system_instruction=system_instruction_text)
+            )
+            response_text = res.text
+        elif model_choice == "ChatGPT (OpenAI)":
+            client = get_openai_client(st.secrets["OPENAI_API_KEY"])
+            res = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[{"role": "system", "content": system_instruction_text}, {"role": "user", "content": prompt}]
+            )
+            response_text = res.choices[0].message.content
+        else:
+            client = get_anthropic_client(st.secrets["ANTHROPIC_API_KEY"])
+            res = client.messages.create(
+                model="claude-3-5-haiku-20241022", max_tokens=1024,
+                system=system_instruction_text, messages=[{"role": "user", "content": prompt}]
+            )
+            response_text = res.content[0].text
 
-                recognition.onresult = function(event) {
-                    const text = event.results[0][0].transcript;
-                    box.style.display = "block";
-                    userTextEl.innerText = text;
-                    statusEl.innerText = "⏳ Jarvis düşünür...";
-                    micBtn.style.backgroundColor = "#ff4b4b";
+        st.session_state.messages.append({"role": "user", "content": prompt})
+        st.session_state.messages.append({"role": "assistant", "content": response_text})
+    except Exception as e:
+        st.error(f"Xəta: {e}")
 
-                    let reply = "Buyurun, sizi eşidirəm: " + text;
-                    if(text.toLowerCase().includes("2") && text.toLowerCase().includes("2")) {
-                        reply = "2 üstə gəl 2, 4 edir.";
-                    }
-
-                    jarvisTextEl.innerText = reply;
-                    statusEl.innerText = "🗣️ Jarvis danışır...";
-                    speakKishiSəsi(reply);
-                };
-
-                recognition.onerror = function(event) {
-                    statusEl.innerText = "⚠️ Səs tanınmadı. Yenidən cəhd edin.";
-                    micBtn.style.backgroundColor = "#ff4b4b";
-                };
-
-                recognition.start();
-            } else {
-                statusEl.innerText = "⚠️ Brauzeriniz səs tanınmasını dəstəkləmir.";
-            }
-
-        } catch (err) {
-            statusEl.innerText = "❌ Mikrofon icazəsi rədd edildi və ya dəstəklənmir.";
-            console.error(err);
-        }
-    };
-
-    function speakKishiSəsi(text) {
-        var msg = new SpeechSynthesisUtterance(text);
-        msg.lang = 'az-AZ';
-        
-        let voices = window.speechSynthesis.getVoices();
-        for(let i = 0; i < voices.length; i++) {
-            if(voices[i].lang.includes('az') || voices[i].lang.includes('tr')) {
-                msg.voice = voices[i];
-                break;
-            }
-        }
-        
-        msg.rate = 1.0;
-        msg.pitch = 0.8; // Kişi səsi üçün səs tonunu aşağı salırıq
-        
-        window.speechSynthesis.speak(msg);
-        msg.onend = function() {
-            statusEl.innerText = "✅ Hazırdır. Yenidən danışmaq üçün basın.";
-        };
-    }
-</script>
-"""
-
-components.html(voice_call_html, height=350)
-
+# Söhbət tarixçəsini ekranda göstəririk
 st.markdown("---")
-st.subheader("💬 Yazılı Söhbət Tarixçəsi")
+st.subheader("💬 Söhbət Tarixçəsi")
 
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
-
-if prompt := st.chat_input("Və ya burada yazı ilə yaza bilərsən..."):
-    st.session_state.messages.append({"role": "user", "content": prompt})
-    with st.chat_message("user"):
-        st.markdown(prompt)
-
-    with st.chat_message("assistant"):
-        try:
-            if model_choice == "Google Gemini (Flash)":
-                client = get_gemini_client(st.secrets["GEMINI_API_KEY"])
-                res = client.models.generate_content(
-                    model='gemini-3.6-flash', contents=prompt,
-                    config=types.GenerateContentConfig(system_instruction=system_instruction_text)
-                )
-                response_text = res.text
-            elif model_choice == "ChatGPT (OpenAI)":
-                client = get_openai_client(st.secrets["OPENAI_API_KEY"])
-                res = client.chat.completions.create(
-                    model="gpt-4o-mini",
-                    messages=[{"role": "system", "content": system_instruction_text}, {"role": "user", "content": prompt}]
-                )
-                response_text = res.choices[0].message.content
-            else:
-                client = get_anthropic_client(st.secrets["ANTHROPIC_API_KEY"])
-                res = client.messages.create(
-                    model="claude-3-5-haiku-20241022", max_tokens=1024,
-                    system=system_instruction_text, messages=[{"role": "user", "content": prompt}]
-                )
-                response_text = res.content[0].text
-
-            st.markdown(response_text)
-            st.session_state.messages.append({"role": "assistant", "content": response_text})
-        except Exception as e:
-            st.error(f"Xəta: {e}")
