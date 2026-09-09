@@ -64,7 +64,6 @@ for idx, message in enumerate(st.session_state.messages):
                 st.audio(message["audio_bytes"], format="audio/wav")
             st.markdown(message["content"], unsafe_allow_html=True)
             
-            # Əgər mesaj köməkçidəndirsə və səs faylı varsa, avtomatik və ya pleyerlə oxut
             if message["role"] == "assistant" and "tts_file" in message and message["tts_file"]:
                 if os.path.exists(message["tts_file"]):
                     st.audio(message["tts_file"], format="audio/mp3", autoplay=True)
@@ -102,7 +101,8 @@ if audio_data and 'bytes' in audio_data:
                 contents=[
                     types.Part.from_bytes(data=audio_bytes, mime_type="audio/wav"),
                     "Bu səsli mesajda nə deyilir? Sadəcə olaraq deyilən sözləri ana dilində yazıya çevir, əlavə heç nə yazma."
-                ]
+                ],
+                config=types.GenerateContentConfig(temperature=0.0)
             )
             if transcribe_resp and transcribe_resp.text:
                 st.session_state.voice_text = transcribe_resp.text.strip()
@@ -146,7 +146,6 @@ if submit_button and prompt:
             if response and response.text:
                 response_text = response.text
                 
-                # Cavabı səsə çevirmək üçün gTTS istifadə edirik
                 tts = gTTS(text=response_text, lang='az', slow=False)
                 tts_path = f"response_{time.time()}.mp3"
                 tts.save(tts_path)
