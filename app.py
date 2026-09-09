@@ -59,7 +59,7 @@ if audio_file is not None:
             client = get_gemini_client(st.secrets["GEMINI_API_KEY"])
             # Gemini birbaşa səsi (audio baytlarını) başa düşür və cavab verir
             response = client.models.generate_content(
-                model='gemini-2.0-flash',
+                model='gemini-3.6-flash',
                 contents=[
                     types.Part.from_bytes(data=audio_bytes, mime_type="audio/wav"),
                     "Bu səsli mesajı dinlə və verilən təlimata uyğun olaraq Azərbaycan dilində (və ya danışılan dildə) cavab ver."
