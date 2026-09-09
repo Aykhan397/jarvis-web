@@ -2,10 +2,10 @@ import streamlit as st
 from google import genai
 from google.genai import types
 from PIL import Image
+import time
 
 st.set_page_config(page_title="Jarvis AI", page_icon="🤖", layout="centered")
 
-# Sağ aşağıdakı nişanları və xarici elementləri gizlədən təmiz CSS
 hide_streamlit_style = """
     <style>
     #MainMenu {visibility: hidden;}
@@ -23,7 +23,6 @@ def get_gemini_client():
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# Sol paneldə şəkil yükləmək və tarixçəni təmizləmək düyməsi
 st.sidebar.title("Jarvis İdarəetmə")
 uploaded_file = st.sidebar.file_uploader("Şəkil yüklə (Analiz üçün)", type=["jpg", "jpeg", "png"])
 
@@ -42,7 +41,6 @@ system_instruction_text = (
 
 st.title("🤖 Jarvis AI")
 
-# Söhbət tarixçəsini göstəririk və hər mesajın yanında silmə düyməsi qoyuruق
 for idx, message in enumerate(st.session_state.messages):
     col_msg, col_del = st.columns([10, 1])
     
@@ -57,7 +55,6 @@ for idx, message in enumerate(st.session_state.messages):
             st.session_state.messages.pop(idx)
             st.rerun()
 
-# Səhifənin aşağı hissəsində sürətli chat input
 if prompt := st.chat_input("Jarvisə nəsə de..."):
     img = Image.open(uploaded_file) if uploaded_file else None
     
@@ -75,8 +72,11 @@ if prompt := st.chat_input("Jarvisə nəsə de..."):
             if img:
                 contents.append(img)
 
+            # Qısa gecikmə əlavə edirik ki, 429 limitinə düşmə ehtimalı azalsın
+            time.sleep(0.5)
+
             response = client.models.generate_content(
-                model='gemini-3.6-flash',
+                model='gemini-2.0-flash',
                 contents=contents,
                 config=types.GenerateContentConfig(
                     system_instruction=system_instruction_text,
@@ -89,5 +89,8 @@ if prompt := st.chat_input("Jarvisə nəsə de..."):
             st.rerun()
             
         except Exception as e:
-            # Xətanın səbəbini birbaşa ekranda göstəririk ki, problemi dərhal görək
-            st.error(f"Xəta baş verdi: {e}")
+            error_str = str(e)
+            if "429" in error_str:
+                st.error("⚠️ **Limit aşıldı (429 Xətası):** Google AI Studio API açarınızın dəqiqəlik sorğu limiti dolub. Zəhmət olmasa Google AI Studio-dan yeni bir API açarı yaradın və `secrets.toml` faylına yazın.")
+            else:
+                st.error(f"Xəta baş verdi: {e}")
