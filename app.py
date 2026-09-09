@@ -75,7 +75,8 @@ for idx, message in enumerate(st.session_state.messages):
         elif action == "Kopyala":
             st.code(message["content"], language="text")
 
-st.write("🎙️ **Səsli mesaj yaz:** (Mikrofona bas, danış, səsin yazıya çevriləcək)")
+# Səsli qeyd yazmaq üçün mikrofon bloku
+st.write("🎙️ **Səsli mesaj yaz:**")
 audio_data = mic_recorder(
     start_prompt="🔴 Başla (Danış)",
     stop_prompt="⏹️ Dayandır",
@@ -98,13 +99,16 @@ if audio_data and 'bytes' in audio_data:
             )
             if transcribe_resp and transcribe_resp.text:
                 st.session_state.voice_text = transcribe_resp.text.strip()
-                st.success("Səs uğurla çevrildi! İndi aşağıdakı göndər oxuna basa bilərsən.")
+                st.success("Səs yazıya çevrildi! Aşağıdakı xanaya düşdü.")
         except Exception as e:
             st.error(f"Səsi oxumaq mümkün olmadı: {e}")
 
-prompt = st.chat_input("Jarvisə nəsə de...", value=st.session_state.voice_text)
+# Mətn daxiletmə sahəsi (Səsdən gələn mətn avtomatik bura dolur, istəsən redaktə edib ox düyməsinə kasa bilərsən)
+with st.form(key="chat_form", clear_on_submit=True):
+    prompt = st.text_input("Jarvisə nəsə de...", value=st.session_state.voice_text, placeholder="Mesajınızı yazın və ya səslə daxil edin...")
+    submit_button = st.form_submit_button("➔ Göndər")
 
-if prompt:
+if submit_button and prompt:
     st.session_state.voice_text = ""
     img = Image.open(uploaded_file) if uploaded_file else None
     
