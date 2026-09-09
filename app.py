@@ -4,9 +4,10 @@ from google.genai import types
 from PIL import Image
 import time
 
+# Səhifənin tənzimlənməsi
 st.set_page_config(page_title="Jarvis AI", page_icon="🤖", layout="centered")
 
-# Streamlit nişanlarını, footer-i və xarici elementləri gizlədən CSS
+# Streamlit nişanlarını, footer-i və "Manage app" düyməsini tamamilə gizlədən CSS
 hide_streamlit_style = """
     <style>
     #MainMenu {visibility: hidden;}
@@ -18,14 +19,16 @@ hide_streamlit_style = """
 """
 st.markdown(hide_streamlit_style, unsafe_allow_html=True)
 
+# Google Genai Client (Secrets-dən açarı oxuyur)
 @st.cache_resource
 def get_gemini_client():
     return genai.Client(api_key=st.secrets["GEMINI_API_KEY"])
 
+# Söhbət tarixçəsinin yaddaşı
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# Sol panel: Şəkil yükləmə və bütün tarixçəni təmizləmə
+# Sol panel (Şəkil yükləmək və söhbəti təmizləmək)
 st.sidebar.title("Jarvis İdarəetmə")
 uploaded_file = st.sidebar.file_uploader("Şəkil yüklə (Analiz üçün)", type=["jpg", "jpeg", "png"])
 
@@ -34,6 +37,7 @@ if st.sidebar.button("🗑️ Bütün Söhbəti Təmizlə", use_container_width=
     st.session_state.messages = []
     st.rerun()
 
+# Jarvisin Peşəkar Sistem Təlimatı
 system_instruction_text = (
     "Sən Jarvis-sən. Azərbaycan dilində və istənilən digər dildə mükəmməl ünsiyyət quran, sadiq, son dərəcə zəkusan. "
     "Heç vaxt yalandan məlumat uydurma, həmişə dəqiq, faktlara əsaslanan və qısa/lakonik cavablar ver. "
@@ -45,10 +49,9 @@ system_instruction_text = (
 
 st.title("🤖 Jarvis AI")
 
-# Söhbət tarixçəsi və hər mesajın sağ üstündə idarəetmə menyusu (Kopyala / Sil)
+# Mövcud söhbət tarixçəsini ekranda göstəririk
 for idx, message in enumerate(st.session_state.messages):
-    # Mesajın başlıq hissəsində sağ tərəfdə kiçik menyu yaratmaq üçün sütunlar
-    col_chat, col_action = st.columns([12, 1])
+    col_chat, col_action = st.columns([11, 1])
     
     with col_chat:
         with st.chat_message(message["role"]):
@@ -57,7 +60,6 @@ for idx, message in enumerate(st.session_state.messages):
             st.markdown(message["content"])
             
     with col_action:
-        # Hər mesajın sağ üstündə yerləşən səliqəli açılan menyu (select_box əvəzinə pop-up effektli expander/menu)
         action = st.selectbox(
             "⚙️", 
             ["Seç", "Sil", "Kopyala"], 
@@ -69,13 +71,13 @@ for idx, message in enumerate(st.session_state.messages):
             st.session_state.messages.pop(idx)
             st.rerun()
         elif action == "Kopyala":
-            # Streamlit-də mətnin kopyalanması üçün qısa məlumat və ya kod bloku göstəririk
             st.code(message["content"], language="text")
 
 # İstifadəçinin mesaj daxiletmə paneli
-if prompt := st.chat_input("Jarvisə nəsə de..."):
+if prompt := st.chat_input("Jarvisə nəsə de... (Səslə yazmaq üçün klaviatura mikrofonundan istifadə et)"):
     img = Image.open(uploaded_file) if uploaded_file else None
     
+    # İstifadəçi mesajını tarixçəyə əlavə edirik
     st.session_state.messages.append({"role": "user", "content": prompt, "image": img})
     
     with st.chat_message("user"):
@@ -83,6 +85,7 @@ if prompt := st.chat_input("Jarvisə nəsə de..."):
             st.image(img, width=300)
         st.markdown(prompt)
 
+    # Jarvisin cavab mexanizmi (503 və 429 xətalarına qarşı təkrar cəhd qoruması ilə)
     with st.chat_message("assistant"):
         response_text = None
         success = False
@@ -93,28 +96,35 @@ if prompt := st.chat_input("Jarvisə nəsə de..."):
             if img:
                 contents.append(img)
 
-            time.sleep(0.3)
+            time.sleep(0.2)
 
-            # Gemini 3.6 Flash modeli ilə sürətli və dəqiq cavab
-            response = client.models.generate_content(
-                model='gemini-3.6-flash',
-                contents=contents,
-                config=types.GenerateContentConfig(
-                    system_instruction=system_instruction_text,
-                    temperature=0.2
-                )
-            )
-            response_text = response.text
-            success = True
+            # Əvvəlcə 3.6-flash, alınmasa 2.0-flash ilə sınaqdan keçirən mexanizm
+            models_to_try = ['gemini-3.6-flash', 'gemini-2.0-flash', 'gemini-1.5-flash']
             
+            for model_name in models_to_try:
+                try:
+                    response = client.models.generate_content(
+                        model=model_name,
+                        contents=contents,
+                        config=types.GenerateContentConfig(
+                            system_instruction=system_instruction_text,
+                            temperature=0.2
+                        )
+                    )
+                    if response and response.text:
+                        response_text = response.text
+                        success = True
+                        break
+                except Exception:
+                    continue
+            
+            if not success:
+                response_text = "⚠️ Server cavab verməkdə çətinlik çəkir (503/Məşğul xətası). Zəhmət olmasa bir neçə saniyə gözləyib yenidən cəhd edin."
+                success = True
+
         except Exception as e:
-            error_str = str(e)
-            if "429" in error_str:
-                response_text = "⚠️ **Server məşğuldur (Limit aşıldı):** Zəhmət olmasa bir neçə saniyə gözləyib yenidən yazın."
-                success = True
-            else:
-                response_text = f"Xəta baş verdi: {error_str}"
-                success = True
+            response_text = f"Xəta baş verdi: {str(e)}"
+            success = True
 
         if success and response_text:
             st.markdown(response_text)
