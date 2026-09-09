@@ -27,6 +27,7 @@ system_instruction_text = (
     "4. Sualları gecikdirmədən, dərhal və dəqiq cavablandır."
 )
 
+# Sol tərəfdə həmişə görünən söhbət tarixçəsi paneli
 with st.sidebar:
     st.title("💬 Söhbətlər")
     if st.button("➕ Yeni Söhbət", use_container_width=True):
@@ -90,7 +91,8 @@ if audio_data and 'bytes' in audio_data:
             audio_bytes = audio_data['bytes']
             
             transcribe_resp = None
-            for attempt in range(3):
+            # 503 xətasına qarşı avtomatik 2 dəfə təkrar cəhd mexanizmi
+            for attempt in range(2):
                 try:
                     transcribe_resp = client.models.generate_content(
                         model='gemini-3.6-flash',
@@ -102,16 +104,16 @@ if audio_data and 'bytes' in audio_data:
                     if transcribe_resp and transcribe_resp.text:
                         break
                 except Exception as err:
-                    if attempt == 2:
+                    if attempt == 1:
                         raise err
-                    time.sleep(2)
+                    time.sleep(1)
 
             if transcribe_resp and transcribe_resp.text:
                 st.session_state.voice_text = transcribe_resp.text.strip()
                 st.success("Səs yazıya çevrildi!")
                 st.rerun()
         except Exception as e:
-            st.error("Serverdə yüklənmə oldu. Bir az gözləyib yenidən cəhd et.")
+            st.error("Serverdə qısamüddətli sıxlıq oldu. Zəhmət olmasa yenidən 'Başla (Danış)' düyməsini sıx.")
 
 with st.form(key="chat_form", clear_on_submit=True):
     prompt = st.text_input("Jarvisə nəsə de və ya link yapışdır...", value=st.session_state.voice_text, placeholder="Məs: https://youtube.com/... bu videoda nə var?")
@@ -137,25 +139,17 @@ if submit_button and prompt:
             if img:
                 contents.append(img)
 
-            for attempt in range(3):
-                try:
-                    response = client.models.generate_content(
-                        model='gemini-3.6-flash',
-                        contents=contents,
-                        config=types.GenerateContentConfig(
-                            system_instruction=system_instruction_text,
-                            temperature=0.1
-                        )
-                    )
-                    if response and response.text:
-                        response_text = response.text
-                        break
-                except Exception as err:
-                    if attempt == 2:
-                        raise err
-                    time.sleep(3)
-
-            if not response_text:
+            response = client.models.generate_content(
+                model='gemini-3.6-flash',
+                contents=contents,
+                config=types.GenerateContentConfig(
+                    system_instruction=system_instruction_text,
+                    temperature=0.1
+                )
+            )
+            if response and response.text:
+                response_text = response.text
+            else:
                 response_text = "⚠️ Cavab alınmadı, yenidən cəhd edin."
 
         except Exception as e:
