@@ -1,11 +1,12 @@
 import streamlit as st
+import streamlit.components.v1 as components
 from google import genai
 from google.genai import types
 from openai import OpenAI
 import anthropic
 from PIL import Image
 
-st.set_page_config(page_title="Jarvis AI", page_icon="🤖")
+st.set_page_config(page_title="Jarvis AI - Voice Talk", page_icon="🤖")
 st.title("🤖 Jarvis AI Assistant")
 
 @st.cache_resource
@@ -20,14 +21,16 @@ def get_openai_client(api_key):
 def get_anthropic_client(api_key):
     return anthropic.Anthropic(api_key=api_key)
 
-# Sol paneldən model seçimi
+# Sol paneldən model seçimi və səsli oxutma açarı
 st.sidebar.title("Parametrlər")
 model_choice = st.sidebar.selectbox(
     "Süni intellekt modelini seç:",
     ["Google Gemini (Flash)", "ChatGPT (OpenAI)", "Claude (Anthropic)"]
 )
 
-# Şəkil yükləmək üçün fayl seçicisi
+# Cavabların səslə oxunmasını istəyib-istəmədiyini tənzimləmək üçün
+speak_response = st.sidebar.checkbox("Səslə cavab vermək (Text-to-Speech)", value=True)
+
 uploaded_file = st.sidebar.file_uploader("Şəkil yüklə (İstəyə bağlı)", type=["jpg", "jpeg", "png"])
 
 system_instruction_text = (
@@ -46,8 +49,20 @@ for message in st.session_state.messages:
             st.image(message["image"], width=300)
         st.markdown(message["content"])
 
-# Söhbət qutusu (Telefon klaviaturasındakı mikrofona basaraq birbaşa səslə də yaza bilərsən)
-if prompt := st.chat_input("Jarvis-ə yaz və ya klaviaturanın mikrofonundan istifadə et..."):
+# Brauzerdə mətnin səslə oxunması üçün JavaScript funksiyası
+def speak_text(text):
+    # Markdown simvollarını və xəritə linklərini səsləndirmə zamanı oxumaması üçün təmizləyirik
+    clean_text = text.replace("*", "").replace("#", "").replace("[Xəritədə bax](", "").replace(")", "")
+    js_code = f"""
+    <script>
+        var msg = new SpeechSynthesisUtterance("{clean_text}");
+        msg.lang = 'az-AZ';
+        window.speechSynthesis.speak(msg);
+    </script>
+    """
+    components.html(js_code, height=0)
+
+if prompt := st.chat_input("Jarvis-ə yaz və ya klaviaturanın mikrofonu ilə de (məsələn: 2 üstə gəl 2 nə edir?)..."):
     img = None
     if uploaded_file is not None:
         img = Image.open(uploaded_file)
@@ -63,7 +78,6 @@ if prompt := st.chat_input("Jarvis-ə yaz və ya klaviaturanın mikrofonundan is
         response_text = ""
         
         try:
-            # 1. Google Gemini
             if model_choice == "Google Gemini (Flash)":
                 api_key = st.secrets.get("GEMINI_API_KEY")
                 if not api_key:
@@ -83,7 +97,6 @@ if prompt := st.chat_input("Jarvis-ə yaz və ya klaviaturanın mikrofonundan is
                     )
                     response_text = response.text
 
-            # 2. ChatGPT (OpenAI)
             elif model_choice == "ChatGPT (OpenAI)":
                 api_key = st.secrets.get("OPENAI_API_KEY")
                 if not api_key:
@@ -99,7 +112,6 @@ if prompt := st.chat_input("Jarvis-ə yaz və ya klaviaturanın mikrofonundan is
                     )
                     response_text = response.choices[0].message.content
 
-            # 3. Claude (Anthropic)
             elif model_choice == "Claude (Anthropic)":
                 api_key = st.secrets.get("ANTHROPIC_API_KEY")
                 if not api_key:
@@ -117,6 +129,10 @@ if prompt := st.chat_input("Jarvis-ə yaz və ya klaviaturanın mikrofonundan is
             if response_text:
                 st.markdown(response_text)
                 st.session_state.messages.append({"role": "assistant", "content": response_text, "image": None})
+                
+                # Əgər sol paneldə səsli oxutma işarəlidirsə, brauzer cavabı səsləndirəcək
+                if speak_response:
+                    speak_text(response_text)
 
         except Exception as e:
             st.error(f"Xəta baş verdi: {e}")
