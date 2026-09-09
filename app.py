@@ -5,20 +5,22 @@ from PIL import Image
 import time
 from streamlit_mic_recorder import mic_recorder
 
-# Geniş ekran rejimi (sidebar-ı səliqəli idarə etmək üçün)
-st.set_page_config(page_title="Jarvis AI", page_icon="🤖", layout="wide")
+st.set_page_config(page_title="Jarvis AI", page_icon="🤖", layout="centered")
 
-# "Manage app" və Streamlit menyularını tamamilə gizlədən CSS
+# Streamlit-in sol menyusunu, toolbar-ı və bütün idarəetmə elementlərini saniyəsindən gizlədən sərt CSS
 hide_streamlit_style = """
     <style>
-    #MainMenu {visibility: hidden !important;}
-    footer {visibility: hidden !important;}
-    header {visibility: hidden !important;}
+    #MainMenu {visibility: hidden !important; display: none !important;}
+    footer {visibility: hidden !important; display: none !important;}
+    header {visibility: hidden !important; display: none !important;}
     .stDeployButton {display: none !important;}
     [data-testid="stToolbar"] {visibility: hidden !important; display: none !important;}
+    [data-testid="stHeader"] {visibility: hidden !important; display: none !important;}
     [data-testid="manage-app-button"] {display: none !important;}
+    [data-testid="stSidebar"] {display: none !important; width: 0px !important;}
+    [data-testid="collapsedControl"] {display: none !important;}
     .viewerBadge_container__1QSob {display: none !important !important;}
-    div[data-testid="stStatusWidget"] {visibility: hidden !important;}
+    div[data-testid="stStatusWidget"] {visibility: hidden !important; display: none !important;}
     </style>
 """
 st.markdown(hide_streamlit_style, unsafe_allow_html=True)
@@ -43,26 +45,6 @@ system_instruction_text = (
     "4. Sualları gecikdirmədən, dərhal və dəqiq cavablandır."
 )
 
-# Sol tərəfdə tətbiqin özünün səliqəli söhbət paneli (tarixçəsi)
-with st.sidebar:
-    st.title("💬 Söhbət Tarixçəsi")
-    st.markdown("---")
-    
-    if st.button("🗑️ Yeni Söhbət", use_container_width=True):
-        st.session_state.messages = []
-        st.session_state.voice_text = ""
-        st.rerun()
-    
-    st.markdown("### Keçmiş Suallar")
-    if st.session_state.messages:
-        for idx, m in enumerate(st.session_state.messages):
-            if m["role"] == "user":
-                preview = m["content"][:25] + "..." if len(m["content"]) > 25 else m["content"]
-                st.write(f"▫️ {preview}")
-    else:
-        st.caption("Hələ ki söhbət yoxdur.")
-
-# Əsas ekran hissəsi
 st.title("🤖 Jarvis AI")
 
 col_ctrl1, col_ctrl2 = st.columns([2, 1])
