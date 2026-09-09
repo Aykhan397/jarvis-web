@@ -4,6 +4,8 @@ from google.genai import types
 from PIL import Image
 import time
 from streamlit_mic_recorder import mic_recorder
+from gtts import gTTS
+import os
 
 st.set_page_config(page_title="Jarvis AI", page_icon="🤖", layout="wide")
 
@@ -61,6 +63,11 @@ for idx, message in enumerate(st.session_state.messages):
             if "audio_bytes" in message and message["audio_bytes"]:
                 st.audio(message["audio_bytes"], format="audio/wav")
             st.markdown(message["content"], unsafe_allow_html=True)
+            
+            # Əgər mesaj köməkçidəndirsə və səs faylı varsa, avtomatik və ya pleyerlə oxut
+            if message["role"] == "assistant" and "tts_file" in message and message["tts_file"]:
+                if os.path.exists(message["tts_file"]):
+                    st.audio(message["tts_file"], format="audio/mp3", autoplay=True)
             
     with col_action:
         action = st.selectbox(
@@ -120,6 +127,7 @@ if submit_button and prompt:
 
     with st.chat_message("assistant"):
         response_text = None
+        tts_path = None
         
         try:
             client = get_gemini_client()
@@ -137,6 +145,12 @@ if submit_button and prompt:
             )
             if response and response.text:
                 response_text = response.text
+                
+                # Cavabı səsə çevirmək üçün gTTS istifadə edirik
+                tts = gTTS(text=response_text, lang='az', slow=False)
+                tts_path = f"response_{time.time()}.mp3"
+                tts.save(tts_path)
+                
             else:
                 response_text = "⚠️ Cavab alınmadı, yenidən cəhd edin."
 
@@ -145,5 +159,13 @@ if submit_button and prompt:
 
         if response_text:
             st.markdown(response_text, unsafe_allow_html=True)
-            st.session_state.messages.append({"role": "assistant", "content": response_text, "image": None})
+            if tts_path and os.path.exists(tts_path):
+                st.audio(tts_path, format="audio/mp3", autoplay=True)
+                
+            st.session_state.messages.append({
+                "role": "assistant", 
+                "content": response_text, 
+                "image": None, 
+                "tts_file": tts_path
+            })
             st.rerun()
