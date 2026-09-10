@@ -2,7 +2,6 @@ import streamlit as st
 from google import genai
 from PIL import Image
 
-# Səhifənin tənzimləmələri
 st.set_page_config(page_title="Jarvis AI", page_icon="🤖", layout="wide")
 
 try:
@@ -13,7 +12,6 @@ except Exception:
 
 client = genai.Client(api_key=api_key)
 
-# İnterfeys mətnləri üçün lüğət (Bütün dillər üçün başlıqlar)
 translations = {
     "Azərbaycan": {
         "title": "JARVIS v1.0",
@@ -77,12 +75,11 @@ translations = {
     }
 }
 
-# Sol menyu: Parametrlər
 st.sidebar.title("JARVIS v1.0")
-st.sidebar.subheader("⚙️ Parametrlər / Settings")
+st.sidebar.subheader("⚙️ Parametrlər")
 
-selected_language = st.sidebar.selectbox("Dil / Language / Язык:", list(translations.keys()))
-t = translations[selected_language]  # Seçilmiş dilə uyğun sözləri götürürük
+selected_language = st.sidebar.selectbox("Dil / Language:", list(translations.keys()))
+t = translations[selected_language]
 
 save_history = st.sidebar.checkbox(t["history_toggle"], value=True)
 
@@ -122,9 +119,14 @@ if st.sidebar.button(t["clear_history"]):
     st.session_state[menu] = []
     st.rerun()
 
-for msg in st.session_state[menu]:
+# Mesajları göstərərkən hər bot mesajına kopyalama rahatlığı üçün expander və ya mətn blokları əlavə edirik
+for i, msg in enumerate(st.session_state[menu]):
     with st.chat_message(msg["role"]):
         st.markdown(msg["content"])
+        # Əgər mesaj köməkçidəndirsə, istifadəçi asan kopyalasın deyə balaca köməkçi əlavə edirik
+        if msg["role"] == "assistant":
+            with st.expander("📋 Mətni kopyala / Copy text"):
+                st.code(msg["content"], language="text")
 
 if user_input := st.chat_input(t["chat_input"]):
     if save_history:
@@ -150,7 +152,7 @@ if user_input := st.chat_input(t["chat_input"]):
                 contents.append(full_prompt)
 
                 response = client.models.generate_content(
-                    model='gemini-3.6-flash',
+                    model='gemini-2.5-flash',
                     contents=contents,
                 )
                 reply = response.text
@@ -158,6 +160,10 @@ if user_input := st.chat_input(t["chat_input"]):
                 reply = f"{t['error']} {str(e)}"
             
             st.markdown(reply)
+            
+            # Bot mesajının altında birbaşa kopyalama bloku çıxması üçün avtomatik əlavə olunur
+            with st.expander("📋 Mətni kopyala / Copy text"):
+                st.code(reply, language="text")
             
             if save_history:
                 st.session_state[menu].append({"role": "assistant", "content": reply})
