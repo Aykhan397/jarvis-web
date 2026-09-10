@@ -26,6 +26,7 @@ translations = {
         "clear_history": "🗑️ Söhbət keçmişini təmizlə",
         "chat_input": "Jarvis-ə yaz...",
         "thinking": "Jarvis düşünür...",
+        "copy_btn": "📋 Kopyalamaq üçün seç",
         "error": "Xəta baş verdi: "
     },
     "English": {
@@ -41,6 +42,7 @@ translations = {
         "clear_history": "🗑️ Clear chat history",
         "chat_input": "Type to Jarvis...",
         "thinking": "Jarvis is thinking...",
+        "copy_btn": "📋 Click to copy",
         "error": "An error occurred: "
     },
     "Türkçe": {
@@ -56,6 +58,7 @@ translations = {
         "clear_history": "🗑️ Sohbet geçmişini temizle",
         "chat_input": "Jarvis'e yaz...",
         "thinking": "Jarvis düşünüyor...",
+        "copy_btn": "📋 Kopyalamak için aç",
         "error": "Bir hata oluştu: "
     },
     "Русский": {
@@ -71,6 +74,7 @@ translations = {
         "clear_history": "🗑️ Очистить историю чата",
         "chat_input": "Напишите Jarvis...",
         "thinking": "Jarvis думает...",
+        "copy_btn": "📋 Скопировать текст",
         "error": "Произошла ошибка: "
     }
 }
@@ -119,14 +123,13 @@ if st.sidebar.button(t["clear_history"]):
     st.session_state[menu] = []
     st.rerun()
 
-# Mesajları göstərərkən hər bot mesajına kopyalama rahatlığı üçün expander və ya mətn blokları əlavə edirik
-for i, msg in enumerate(st.session_state[menu]):
+for msg in st.session_state[menu]:
     with st.chat_message(msg["role"]):
         st.markdown(msg["content"])
-        # Əgər mesaj köməkçidəndirsə, istifadəçi asan kopyalasın deyə balaca köməkçi əlavə edirik
         if msg["role"] == "assistant":
-            with st.expander("📋 Mətni kopyala / Copy text"):
-                st.code(msg["content"], language="text")
+            #st.code avtomatik olaraq sağ küncündə kopyalama işarəsi (clipboard icon) olan qutu yaradır
+            with st.expander(t["copy_btn"]):
+                st.code(msg["content"], language="markdown")
 
 if user_input := st.chat_input(t["chat_input"]):
     if save_history:
@@ -161,9 +164,8 @@ if user_input := st.chat_input(t["chat_input"]):
             
             st.markdown(reply)
             
-            # Bot mesajının altında birbaşa kopyalama bloku çıxması üçün avtomatik əlavə olunur
-            with st.expander("📋 Mətni kopyala / Copy text"):
-                st.code(reply, language="text")
+            with st.expander(t["copy_btn"]):
+                st.code(reply, language="markdown")
             
             if save_history:
                 st.session_state[menu].append({"role": "assistant", "content": reply})
