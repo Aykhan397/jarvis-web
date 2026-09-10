@@ -4,8 +4,7 @@ from google import genai
 # Səhifənin tənzimləmələri
 st.set_page_config(page_title="Jarvis - AI İdarəetmə Paneli", page_icon="🤖", layout="wide")
 
-# API açarını Streamlit secrets-dən və ya birbaşa burdan oxuya bilərsən
-# Təhlükəsizlik üçün st.secrets istifadə etmək daha yaxşıdır, amma test üçün birbaşa yaza bilərsən:
+# API açarı (öz açarını bura yaz və ya Streamlit secrets istifadə et)
 api_key = st.secrets.get("GEMINI_API_KEY") or "SƏNİN_GEMİNİ_APİ_AÇARIN"
 
 client = genai.Client(api_key=api_key)
@@ -26,7 +25,7 @@ system_prompts = {
 }
 
 st.title("🤖 Jarvis AI Köməkçisi")
-st.write(Hazırkı rejim: **{menu}**")
+st.write(f"Hazırkı rejim: **{menu}**")
 
 # Söhbət tarixçəsini saxlamaq üçün
 if menu not in st.session_state:
