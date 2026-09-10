@@ -155,7 +155,7 @@ if user_input := st.chat_input(t["chat_input"]):
 
                 # Hava proqnozu və canlı axtarış üçün Google Search aləti yenidən aktivləşdirildi
                 response = client.models.generate_content(
-                    model='gemini-3.6-flash.6-flash',
+                    model='gemini-3.6-flash',
                     contents=contents,
                     config={
                         'tools': [{'google_search': {}}]
