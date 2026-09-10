@@ -24,9 +24,9 @@ translations = {
         "selected_lang": "Seçilmiş dil:",
         "uploader": "Şəkil yüklə (istəyə bağlı):",
         "clear_history": "🗑️ Söhbət keçmişini təmizlə",
-        "chat_input": "Jarvis-ə yaz...",
-        "thinking": "Jarvis düşünür...",
-        "copy_btn": "📋 Kopyalamaq üçün seç",
+        "chat_input": "Jarvis-ə yaz... (Məsələn: 'Sabah Bakıda hava necə olacaq?')",
+        "thinking": "Jarvis internetdən yoxlayır...",
+        "copy_btn": "📋 Mətni kopyala",
         "error": "Xəta baş verdi: "
     },
     "English": {
@@ -41,8 +41,8 @@ translations = {
         "uploader": "Upload image (optional):",
         "clear_history": "🗑️ Clear chat history",
         "chat_input": "Type to Jarvis...",
-        "thinking": "Jarvis is thinking...",
-        "copy_btn": "📋 Click to copy",
+        "thinking": "Jarvis is searching...",
+        "copy_btn": "📋 Copy text",
         "error": "An error occurred: "
     },
     "Türkçe": {
@@ -57,8 +57,8 @@ translations = {
         "uploader": "Resim yükle (isteğe bağlı):",
         "clear_history": "🗑️ Sohbet geçmişini temizle",
         "chat_input": "Jarvis'e yaz...",
-        "thinking": "Jarvis düşünüyor...",
-        "copy_btn": "📋 Kopyalamak için aç",
+        "thinking": "Jarvis arıyor...",
+        "copy_btn": "📋 Metni kopyala",
         "error": "Bir hata oluştu: "
     },
     "Русский": {
@@ -73,7 +73,7 @@ translations = {
         "uploader": "Загрузить фото (необязательно):",
         "clear_history": "🗑️ Очистить историю чата",
         "chat_input": "Напишите Jarvis...",
-        "thinking": "Jarvis думает...",
+        "thinking": "Jarvis ищет...",
         "copy_btn": "📋 Скопировать текст",
         "error": "Произошла ошибка: "
     }
@@ -91,20 +91,20 @@ st.sidebar.markdown("---")
 st.sidebar.subheader(t["modes_title"])
 
 mode_descriptions = {
-    "1. Chat": "Sərbəst dialoq, şəkil və linklərin analizi.",
-    "2. Quick Q&A": "Qısa, dəqiq və konkret cavablar.",
-    "3. Code Assistant": "Kod yazmaq və səhvləri tapmaq.",
-    "4. Strategy Advisor": "Addım-addım strateji planlar."
+    "1. Şəxsi Köməkçi (Hava & Canlı)": "Hava proqnozu, internet axtarışı və gündəlik suallar.",
+    "2. Sərbəst Chat": "Sərbəst dialoq, şəkil və linklərin analizi.",
+    "3. Kod Köməkçisi": "Kod yazmaq və səhvləri tapmaq.",
+    "4. Strategiya Məsləhətçisi": "Addım-addım strateji planlar."
 }
 
 menu = st.sidebar.selectbox("Rejim / Mode:", list(mode_descriptions.keys()))
 st.sidebar.info(mode_descriptions[menu])
 
 system_prompts = {
-    "1. Chat": f"You are Jarvis, a helpful AI assistant. Answer strictly in '{selected_language}'.",
-    "2. Quick Q&A": f"You are Jarvis. Give very short, precise answers. Answer strictly in '{selected_language}'.",
-    "3. Code Assistant": f"You are a professional programmer. Write clean code and explain in '{selected_language}'.",
-    "4. Strategy Advisor": f"You are a strategic advisor. Provide step-by-step plans in '{selected_language}'."
+    "1. Şəxsi Köməkçi (Hava & Canlı)": f"Sən Jarvis-sən, istifadəçinin şəxsi köməkçisisən. Hava proqnozu və ya cari məlumat istənildikdə internetdən axtarış edərək dəqiq cavab ver. Cavabları '{selected_language}' dilində ver.",
+    "2. Sərbəst Chat": f"You are Jarvis, a helpful AI assistant. Answer strictly in '{selected_language}'.",
+    "3. Kod Köməkçisi": f"You are a professional programmer. Write clean code and explain in '{selected_language}'.",
+    "4. Strategiya Məsləhətçisi": f"You are a strategic advisor. Provide step-by-step plans in '{selected_language}'."
 }
 
 st.title(t["main_title"])
@@ -127,7 +127,6 @@ for msg in st.session_state[menu]:
     with st.chat_message(msg["role"]):
         st.markdown(msg["content"])
         if msg["role"] == "assistant":
-            #st.code avtomatik olaraq sağ küncündə kopyalama işarəsi (clipboard icon) olan qutu yaradır
             with st.expander(t["copy_btn"]):
                 st.code(msg["content"], language="markdown")
 
@@ -154,9 +153,13 @@ if user_input := st.chat_input(t["chat_input"]):
                 full_prompt = f"{system_prompts[menu]}\n\n{history_context}\n\nUser query: {user_input}"
                 contents.append(full_prompt)
 
+                # Hava proqnozu və canlı axtarış üçün Google Search aləti yenidən aktivləşdirildi
                 response = client.models.generate_content(
-                    model='gemini-3.6-flash',
+                    model='gemini-3.6-flash.6-flash',
                     contents=contents,
+                    config={
+                        'tools': [{'google_search': {}}]
+                    }
                 )
                 reply = response.text
             except Exception as e:
