@@ -18,7 +18,8 @@ if "messages" not in st.session_state:
     st.session_state.messages = []
 
 system_instruction_text = (
-    "Sən Jarvis-sən. Azərbaycan dilində mükəmməl ünsiyyət quran, sadiq və zəkusan. "
+    "Sən Jarvis-sən. Mütləq və həmişə yalnız Azərbaycan dilində cavab verməlisən. "
+    "Hansı dildə sual verilməsindən asılı olmayaraq, cavabın mütləq Azərbaycan dilində olmalıdır. "
     "Həmişə ultra-qısa, lakonik və dəqiq cavablar ver. Artıq-əskik söz yazma. "
     "1. Məkan soruşulanda [Xəritədə bax](https://maps.google.com/?q=yerin_adi) əlavə et. "
     "2. YouTube linki olanda qısa məzmun yaz. "
@@ -83,7 +84,6 @@ if submit_button and prompt:
             if img:
                 contents.append(img)
 
-            # Sürətli cavab üçün təkrar cəhd müddəti azaldıldı (0.3 san)
             for attempt in range(2):
                 try:
                     client = get_gemini_client(attempt)
@@ -93,7 +93,7 @@ if submit_button and prompt:
                         config=types.GenerateContentConfig(
                             system_instruction=system_instruction_text,
                             temperature=0.1,
-                            max_output_tokens=300  # Cavabların uzunluğunu məhdudlaşdıraraq sürəti artırır
+                            max_output_tokens=300
                         )
                     )
                     if response and response.text:
@@ -117,7 +117,7 @@ if submit_button and prompt:
                         const speech = new SpeechSynthesisUtterance();
                         speech.text = {json.dumps(clean_speech)};
                         speech.lang = 'az-AZ';
-                        speech.rate = 1.1;  // Səsi bir az daha sürətli oxuyur
+                        speech.rate = 1.1;
                         window.speechSynthesis.speak(speech);
                     </script>
                 """, height=0)
