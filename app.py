@@ -152,7 +152,7 @@ if user_input := st.chat_input(t["chat_input"]):
                 contents.append(full_prompt)
 
                 response = client.models.generate_content(
-                    model='gemini-2.5-flash',
+                    model='gemini-3.6-flash',
                     contents=contents,
                 )
                 reply = response.text
