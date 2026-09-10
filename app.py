@@ -15,51 +15,69 @@ except Exception:
 # GenAI müştərisini başladırıq
 client = genai.Client(api_key=api_key)
 
-# Sol menyu və rejimlər
+# Sol menyu: Parametrlər və Rejimlər
 st.sidebar.title("JARVIS v1.0")
 
-# Hər rejim haqqında məlumat lüğəti (i butonu üçün izahatlar)
+st.sidebar.subheader("⚙️ Parametrlər")
+# 1. Bütün dilləri seçmək üçün dil seçimi
+selected_language = st.sidebar.selectbox("Tətbiqin dili / Dil seçin:", [
+    "Azərbaycan", "English", "Türkçe", "Русский", "Español", 
+    "Français", "Deutsch", "Italiano", "العربية", "中文", "日本語", "한국어"
+])
+
+# 2. Söhbət Keçmişi (Chat History) - Aktiv / Deaktiv etmək üçün parametr
+save_history = st.sidebar.checkbox("Söhbət keçmişini yadda saxla", value=True)
+
+st.sidebar.markdown("---")
+st.sidebar.subheader("🎯 Rejimlər")
+
 mode_descriptions = {
-    "1. Söhbət (Chat)": "ℹ️ Məlumat: Jarvis ilə sərbəst dialoq qurmaq, şəkil yükləmək, video linklərini və konum/ünvanları müzakirə etmək üçündür.",
+    "1. Söhbət (Chat)": "ℹ️ Məlumat: Jarvis ilə sərbəst dialoq qurmaq, şəkil yükləmək, video linkləri və konum/ünvanları müzakirə etmək üçündür.",
     "2. Sürətli Sual": "ℹ️ Məlumat: Uzun izahatlar əvəzinə verilən suallara dərhal ən qısa, dəqiq və konkret cavablar vermək üçün nəzərdə tutulub.",
     "3. Kod Köməkçisi": "ℹ️ Məlumat: Proqramlaşdırma dillərində kod yazmaq, səhvləri (bug) tapmaq və kod daxilində şəkil/linkləri analiz etmək üçündür.",
     "4. Strategiya Məsləhətçisi": "ℹ️ Məlumat: Hər hansı plan və ya layihə üçün addım-addım strateji planlar qurur, konum və ya media linklərini qiymətləndirir."
 }
 
 menu = st.sidebar.selectbox("Rejimi seç:", list(mode_descriptions.keys()))
-
-# Seçilmiş rejimin məlumatını (i butonu effektini) sol menyuda göstəririk
 st.sidebar.info(mode_descriptions[menu])
 
 system_prompts = {
-    "1. Söhbət (Chat)": "Sən Jarvis-sən, dostcanlı və köməkçi süni intellekt köməkçisisən. İstifadəçinin göndərdiyi şəkilləri təhlil edə, video linklərini şərh edə və konum/ünvan məlumatları üzrə kömək edə bilirsən. Azərbaycan dilində cavab ver.",
-    "2. Sürətli Sual": "Sən Jarvis-sən. Verilən suallara çox qısa, deqiq və konkret cavablar ver. Şəkil, video linkləri və konum sorğularını nəzərə alaraq qısa cavablandır. Azərbaycan dilində cavab ver.",
-    "3. Kod Köməkçisi": "Sən peşəkar proqramlaşdırma mütəxəssisisən. Kodları yazır, səhvləri tapırsan. Şəkillərdəki kodları analiz edə, kodlarla bağlı video linkləri və konum/mühit məsələlərini dəstəkləyirsən.",
-    "4. Strategiya Məsləhətçisi": "Sən strateji planlaşdırma və məsləhətçi Jarvis-sən. İstifadəçiyə addım-addım planlar təqdim edirsən. Şəkilləri, video linklərini və konum məlumatlarını strateji baxımdan qiymətləndirirsən."
+    "1. Söhbət (Chat)": f"Sən Jarvis-sən, dostcanlı və köməkçi süni intellekt köməkçisisən. İstifadəçinin göndərdiyi şəkilləri təhlil edə, video linklərini şərh edə və konum/ünvan məlumatları üzrə kömək edə bilirsən. Bütün cavablarını mütləq şəkildə '{selected_language}' dilində ver.",
+    "2. Sürətli Sual": f"Sən Jarvis-sən. Verilən suallara çox qısa, dəqiq və konkret cavablar ver. Şəkil, video linkləri və konum sorğularını nəzərə alaraq qısa cavablandır. Bütün cavablarını '{selected_language}' dilində ver.",
+    "3. Kod Köməkçisi": f"Sən peşəkar proqramlaşdırma mütəxəssisisən. Kodları yazır, səhvləri tapırsan. Şəkillərdəki kodları analiz edə, kodlarla bağlı video linkləri və konum/mühit məsələlərini dəstəkləyirsən. İzahları '{selected_language}' dilində ver.",
+    "4. Strategiya Məsləhətçisi": f"Sən strateji planlaşdırma və məsləhətçi Jarvis-sən. İstifadəçiyə addım-addım planlar təqdim edirsən. Şəkilləri, video linklərini və konum məlumatlarını strateji baxımdan qiymətləndirirsən. Cavabları '{selected_language}' dilində ver."
 }
 
 st.title("🤖 Jarvis AI Köməkçisi")
-st.write(f"Hazırkı rejim: **{menu}**")
+st.write(f"Hazırkı rejim: **{menu}** | Seçilmiş dil: **{selected_language}**")
 
-# Hər 4 rejimdə şəkil yükləmək və konum/link sorğuları üçün panel
+# Şəkil yükləmə paneli
 uploaded_file = st.file_uploader("Şəkil yüklə (istəyə bağlı - şəkillə, kodla, konumla və ya video linki ilə bağlı sual verə bilərsən):", type=["jpg", "jpeg", "png"])
 image = None
 if uploaded_file:
     image = Image.open(uploaded_file)
     st.image(image, caption="Yüklənən şəkil", width=300)
 
-# Hər rejim üçün ayrı söhbət tarixçəsi
+# Söhbət keçmişinin idarə edilməsi (Session State)
 if menu not in st.session_state:
     st.session_state[menu] = []
 
-# Əvvəlki mesajları ekrana çap edirik
+# Əgər keçmişi təmizləmək düyməsi əlavə etmək istəsənsə
+if st.sidebar.button("🗑️ Söhbət keçmişini təmizlə"):
+    st.session_state[menu] = []
+    st.rerun()
+
+# Söhbət keçmişini ekranda göstəririk (Səndə olduğu kimi)
 for msg in st.session_state[menu]:
     with st.chat_message(msg["role"]):
         st.markdown(msg["content"])
 
 # İstifadəçidən mesaj qəbulu
 if user_input := st.chat_input("Jarvis-ə yaz... (Məsələn: YouTube linki at, konum haqqında soruş və ya şəkil yüklə)"):
-    st.session_state[menu].append({"role": "user", "content": user_input})
+    # Əgər parametr aktivdirsə, keçmişə əlavə edirik
+    if save_history:
+        st.session_state[menu].append({"role": "user", "content": user_input})
+    
     with st.chat_message("user"):
         st.markdown(user_input)
         if uploaded_file:
@@ -72,7 +90,12 @@ if user_input := st.chat_input("Jarvis-ə yaz... (Məsələn: YouTube linki at, 
                 if image:
                     contents.append(image)
                 
-                full_prompt = f"{system_prompts[menu]}\n\nİstifadəçi təlimatı / sorğusu (video linki, konum və ya sual): {user_input}"
+                # Keçmiş mesajları kontekst kimi modelə ötürürük ki, söhbətin ardıcıllığı qorunsun
+                history_context = ""
+                if save_history and len(st.session_state[menu]) > 1:
+                    history_context = "Əvvəlki söhbət tarixçəsi:\n" + "\n".join([f"{m['role']}: {m['content']}" for m in st.session_state[menu][-6:]])
+
+                full_prompt = f"{system_prompts[menu]}\n\n{history_context}\n\nİstifadəçinin yeni sorğusu: {user_input}"
                 contents.append(full_prompt)
 
                 response = client.models.generate_content(
@@ -84,4 +107,6 @@ if user_input := st.chat_input("Jarvis-ə yaz... (Məsələn: YouTube linki at, 
                 reply = f"Xəta baş verdi: {str(e)}"
             
             st.markdown(reply)
-            st.session_state[menu].append({"role": "assistant", "content": reply})
+            
+            if save_history:
+                st.session_state[menu].append({"role": "assistant", "content": reply})
