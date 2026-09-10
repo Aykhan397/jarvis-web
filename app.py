@@ -17,16 +17,23 @@ client = genai.Client(api_key=api_key)
 
 # Sol menyu və rejimlər
 st.sidebar.title("JARVIS v1.0")
-menu = st.sidebar.selectbox("Rejimi seç:", [
-    "1. Söhbət (Chat)", 
-    "2. Sürətli Sual", 
-    "3. Kod Köməkçisi", 
-    "4. Strategiya Məsləhətçisi"
-])
+
+# Hər rejim haqqında məlumat lüğəti (i butonu üçün izahatlar)
+mode_descriptions = {
+    "1. Söhbət (Chat)": "ℹ️ Məlumat: Jarvis ilə sərbəst dialoq qurmaq, şəkil yükləmək, video linklərini və konum/ünvanları müzakirə etmək üçündür.",
+    "2. Sürətli Sual": "ℹ️ Məlumat: Uzun izahatlar əvəzinə verilən suallara dərhal ən qısa, dəqiq və konkret cavablar vermək üçün nəzərdə tutulub.",
+    "3. Kod Köməkçisi": "ℹ️ Məlumat: Proqramlaşdırma dillərində kod yazmaq, səhvləri (bug) tapmaq və kod daxilində şəkil/linkləri analiz etmək üçündür.",
+    "4. Strategiya Məsləhətçisi": "ℹ️ Məlumat: Hər hansı plan və ya layihə üçün addım-addım strateji planlar qurur, konum və ya media linklərini qiymətləndirir."
+}
+
+menu = st.sidebar.selectbox("Rejimi seç:", list(mode_descriptions.keys()))
+
+# Seçilmiş rejimin məlumatını (i butonu effektini) sol menyuda göstəririk
+st.sidebar.info(mode_descriptions[menu])
 
 system_prompts = {
     "1. Söhbət (Chat)": "Sən Jarvis-sən, dostcanlı və köməkçi süni intellekt köməkçisisən. İstifadəçinin göndərdiyi şəkilləri təhlil edə, video linklərini şərh edə və konum/ünvan məlumatları üzrə kömək edə bilirsən. Azərbaycan dilində cavab ver.",
-    "2. Sürətli Sual": "Sən Jarvis-sən. Verilən suallara çox qısa, dəqiq və konkret cavablar ver. Şəkil, video linkləri və konum sorğularını nəzərə alaraq qısa cavablandır. Azərbaycan dilində cavab ver.",
+    "2. Sürətli Sual": "Sən Jarvis-sən. Verilən suallara çox qısa, deqiq və konkret cavablar ver. Şəkil, video linkləri və konum sorğularını nəzərə alaraq qısa cavablandır. Azərbaycan dilində cavab ver.",
     "3. Kod Köməkçisi": "Sən peşəkar proqramlaşdırma mütəxəssisisən. Kodları yazır, səhvləri tapırsan. Şəkillərdəki kodları analiz edə, kodlarla bağlı video linkləri və konum/mühit məsələlərini dəstəkləyirsən.",
     "4. Strategiya Məsləhətçisi": "Sən strateji planlaşdırma və məsləhətçi Jarvis-sən. İstifadəçiyə addım-addım planlar təqdim edirsən. Şəkilləri, video linklərini və konum məlumatlarını strateji baxımdan qiymətləndirirsən."
 }
@@ -34,8 +41,8 @@ system_prompts = {
 st.title("🤖 Jarvis AI Köməkçisi")
 st.write(f"Hazırkı rejim: **{menu}**")
 
-# Hər 4 rejimdə şəkil yükləmək və konum/link sorğuları üçün ümumi panel
-uploaded_file = st.file_uploader("Bir şəkil yüklə (istəyə bağlı - şəkillə, kodla və ya konumla bağlı sual verə bilərsən):", type=["jpg", "jpeg", "png"])
+# Hər 4 rejimdə şəkil yükləmək və konum/link sorğuları üçün panel
+uploaded_file = st.file_uploader("Şəkil yüklə (istəyə bağlı - şəkillə, kodla, konumla və ya video linki ilə bağlı sual verə bilərsən):", type=["jpg", "jpeg", "png"])
 image = None
 if uploaded_file:
     image = Image.open(uploaded_file)
@@ -50,7 +57,7 @@ for msg in st.session_state[menu]:
     with st.chat_message(msg["role"]):
         st.markdown(msg["content"])
 
-# İstifadəçidən mesaj qəbulu (video linki, konum və ya mətn)
+# İstifadəçidən mesaj qəbulu
 if user_input := st.chat_input("Jarvis-ə yaz... (Məsələn: YouTube linki at, konum haqqında soruş və ya şəkil yüklə)"):
     st.session_state[menu].append({"role": "user", "content": user_input})
     with st.chat_message("user"):
