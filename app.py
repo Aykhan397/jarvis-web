@@ -3,62 +3,122 @@ from google import genai
 from PIL import Image
 
 # Səhifənin tənzimləmələri
-st.set_page_config(page_title="Jarvis - AI Şəxsi Köməkçi", page_icon="🤖", layout="wide")
+st.set_page_config(page_title="Jarvis AI", page_icon="🤖", layout="wide")
 
-# Təhlükəsizlik üçün API açarını Streamlit Secrets-dən oxuyuruq
 try:
     api_key = st.secrets["GEMINI_API_KEY"]
 except Exception:
-    st.error("Xəta: Streamlit Secrets bölməsində 'GEMINI_API_KEY' tapılmadı! Zəhmət olmasa Secrets ayarlarını yoxlayın.")
+    st.error("API key not found in secrets!")
     st.stop()
 
-# GenAI müştərisini başladırıq
 client = genai.Client(api_key=api_key)
 
-# Sol menyu: Parametrlər və Rejimlər
-st.sidebar.title("JARVIS v1.0")
-
-st.sidebar.subheader("⚙️ Parametrlər")
-selected_language = st.sidebar.selectbox("Tətbiqin dili / Dil seçin:", [
-    "Azərbaycan", "English", "Türkçe", "Русский", "Español", 
-    "Français", "Deutsch", "Italiano", "العربية", "中文", "日本語", "한국어"
-])
-
-save_history = st.sidebar.checkbox("Söhbət keçmişini yadda saxla", value=True)
-
-st.sidebar.markdown("---")
-st.sidebar.subheader("🎯 Rejimlər")
-
-mode_descriptions = {
-    "1. Şəxsi Köməkçi (Chat)": "ℹ️ Məlumat: Jarvis ilə sərbəst dialoq qurmaq, şəkil yükləmək, video linkləri və gündəlik sualları müzakirə etmək üçündür.",
-    "2. Sürətli Sual": "ℹ️ Məlumat: Uzun izahatlar əvəzinə verilən suallara dərhal ən qısa, dəqiq və konkret cavablar verir.",
-    "3. Kod Köməkçisi": "ℹ️ Məlumat: Proqramlaşdırma dillərində kod yazmaq, səhvləri tapmaq və izahat vermək üçündür.",
-    "4. Strategiya Məsləhətçisi": "ℹ️ Məlumat: Hər hansı plan və ya layihə üçün addım-addım strateji planlar təqdim edir."
+# İnterfeys mətnləri üçün lüğət (Bütün dillər üçün başlıqlar)
+translations = {
+    "Azərbaycan": {
+        "title": "JARVIS v1.0",
+        "settings": "⚙️ Parametrlər",
+        "lang_select": "Tətbiqin dili:",
+        "history_toggle": "Söhbət keçmişini yadda saxla",
+        "modes_title": "🎯 Rejimlər",
+        "main_title": "🤖 Jarvis Şəxsi Köməkçi",
+        "current_mode": "Hazırkı rejim:",
+        "selected_lang": "Seçilmiş dil:",
+        "uploader": "Şəkil yüklə (istəyə bağlı):",
+        "clear_history": "🗑️ Söhbət keçmişini təmizlə",
+        "chat_input": "Jarvis-ə yaz...",
+        "thinking": "Jarvis düşünür...",
+        "error": "Xəta baş verdi: "
+    },
+    "English": {
+        "title": "JARVIS v1.0",
+        "settings": "⚙️ Settings",
+        "lang_select": "App Language:",
+        "history_toggle": "Save chat history",
+        "modes_title": "🎯 Modes",
+        "main_title": "🤖 Jarvis Personal Assistant",
+        "current_mode": "Current mode:",
+        "selected_lang": "Selected language:",
+        "uploader": "Upload image (optional):",
+        "clear_history": "🗑️ Clear chat history",
+        "chat_input": "Type to Jarvis...",
+        "thinking": "Jarvis is thinking...",
+        "error": "An error occurred: "
+    },
+    "Türkçe": {
+        "title": "JARVIS v1.0",
+        "settings": "⚙️ Ayarlar",
+        "lang_select": "Uygulama Dili:",
+        "history_toggle": "Sohbet geçmişini kaydet",
+        "modes_title": "🎯 Modlar",
+        "main_title": "🤖 Jarvis Kişisel Asistan",
+        "current_mode": "Mevcut mod:",
+        "selected_lang": "Seçilen dil:",
+        "uploader": "Resim yükle (isteğe bağlı):",
+        "clear_history": "🗑️ Sohbet geçmişini temizle",
+        "chat_input": "Jarvis'e yaz...",
+        "thinking": "Jarvis düşünüyor...",
+        "error": "Bir hata oluştu: "
+    },
+    "Русский": {
+        "title": "JARVIS v1.0",
+        "settings": "⚙️ Настройки",
+        "lang_select": "Язык приложения:",
+        "history_toggle": "Сохранять историю чата",
+        "modes_title": "🎯 Режимы",
+        "main_title": "🤖 Персональный помощник Jarvis",
+        "current_mode": "Текущий режим:",
+        "selected_lang": "Выбранный язык:",
+        "uploader": "Загрузить фото (необязательно):",
+        "clear_history": "🗑️ Очистить историю чата",
+        "chat_input": "Напишите Jarvis...",
+        "thinking": "Jarvis думает...",
+        "error": "Произошла ошибка: "
+    }
 }
 
-menu = st.sidebar.selectbox("Rejimi seç:", list(mode_descriptions.keys()))
+# Sol menyu: Parametrlər
+st.sidebar.title("JARVIS v1.0")
+st.sidebar.subheader("⚙️ Parametrlər / Settings")
+
+selected_language = st.sidebar.selectbox("Dil / Language / Язык:", list(translations.keys()))
+t = translations[selected_language]  # Seçilmiş dilə uyğun sözləri götürürük
+
+save_history = st.sidebar.checkbox(t["history_toggle"], value=True)
+
+st.sidebar.markdown("---")
+st.sidebar.subheader(t["modes_title"])
+
+mode_descriptions = {
+    "1. Chat": "Sərbəst dialoq, şəkil və linklərin analizi.",
+    "2. Quick Q&A": "Qısa, dəqiq və konkret cavablar.",
+    "3. Code Assistant": "Kod yazmaq və səhvləri tapmaq.",
+    "4. Strategy Advisor": "Addım-addım strateji planlar."
+}
+
+menu = st.sidebar.selectbox("Rejim / Mode:", list(mode_descriptions.keys()))
 st.sidebar.info(mode_descriptions[menu])
 
 system_prompts = {
-    "1. Şəxsi Köməkçi (Chat)": f"Sən Jarvis-sən, istifadəçinin şəxsi süni intellekt köməkçisisən. Şəkilləri təhlil edə, video linklərini şərh edə bilirsən. Bütün cavablarını mütləq şəkildə '{selected_language}' dilində ver.",
-    "2. Sürətli Sual": f"Sən Jarvis-sən. Verilən suallara çox qısa, dəqiq və konkret cavablar ver. Cavabları '{selected_language}' dilində ver.",
-    "3. Kod Köməkçisi": f"Sən peşəkar proqramlaşdırma mütəxəssisisən. Kodları yazır, səhvləri tapırsan. İzahları '{selected_language}' dilində ver.",
-    "4. Strategiya Məsləhətçisi": f"Sən strateji planlaşdırma və məsləhətçi Jarvis-sən. İstifadəçiyə addım-addım planlar təqdim edirsən. Cavabları '{selected_language}' dilində ver."
+    "1. Chat": f"You are Jarvis, a helpful AI assistant. Answer strictly in '{selected_language}'.",
+    "2. Quick Q&A": f"You are Jarvis. Give very short, precise answers. Answer strictly in '{selected_language}'.",
+    "3. Code Assistant": f"You are a professional programmer. Write clean code and explain in '{selected_language}'.",
+    "4. Strategy Advisor": f"You are a strategic advisor. Provide step-by-step plans in '{selected_language}'."
 }
 
-st.title("🤖 Jarvis Şəxsi Köməkçi")
-st.write(f"Hazırkı rejim: **{menu}** | Seçilmiş dil: **{selected_language}**")
+st.title(t["main_title"])
+st.write(f"{t['current_mode']} **{menu}** | {t['selected_lang']} **{selected_language}**")
 
-uploaded_file = st.file_uploader("Şəkil yüklə (istəyə bağlı):", type=["jpg", "jpeg", "png"])
+uploaded_file = st.file_uploader(t["uploader"], type=["jpg", "jpeg", "png"])
 image = None
 if uploaded_file:
     image = Image.open(uploaded_file)
-    st.image(image, caption="Yüklənən şəkil", width=300)
+    st.image(image, caption="Uploaded Image", width=300)
 
 if menu not in st.session_state:
     st.session_state[menu] = []
 
-if st.sidebar.button("🗑️ Söhbət keçmişini təmizlə"):
+if st.sidebar.button(t["clear_history"]):
     st.session_state[menu] = []
     st.rerun()
 
@@ -66,7 +126,7 @@ for msg in st.session_state[menu]:
     with st.chat_message(msg["role"]):
         st.markdown(msg["content"])
 
-if user_input := st.chat_input("Jarvis-ə bir şey yaz..."):
+if user_input := st.chat_input(t["chat_input"]):
     if save_history:
         st.session_state[menu].append({"role": "user", "content": user_input})
     
@@ -76,7 +136,7 @@ if user_input := st.chat_input("Jarvis-ə bir şey yaz..."):
             st.image(uploaded_file, width=150)
 
     with st.chat_message("assistant"):
-        with st.spinner("Jarvis düşünür..."):
+        with st.spinner(t["thinking"]):
             try:
                 contents = []
                 if image:
@@ -84,19 +144,18 @@ if user_input := st.chat_input("Jarvis-ə bir şey yaz..."):
                 
                 history_context = ""
                 if save_history and len(st.session_state[menu]) > 1:
-                    history_context = "Əvvəlki söhbət tarixçəsi:\n" + "\n".join([f"{m['role']}: {m['content']}" for m in st.session_state[menu][-6:]])
+                    history_context = "History:\n" + "\n".join([f"{m['role']}: {m['content']}" for m in st.session_state[menu][-6:]])
 
-                full_prompt = f"{system_prompts[menu]}\n\n{history_context}\n\nİstifadəçinin yeni sorğusu: {user_input}"
+                full_prompt = f"{system_prompts[menu]}\n\n{history_context}\n\nUser query: {user_input}"
                 contents.append(full_prompt)
 
-                # Axtarış aləti (google_search) çıxarıldı ki, 429 limiti verməsin
                 response = client.models.generate_content(
                     model='gemini-3.6-flash',
                     contents=contents,
                 )
                 reply = response.text
             except Exception as e:
-                reply = f"Xəta baş verdi: {str(e)}"
+                reply = f"{t['error']} {str(e)}"
             
             st.markdown(reply)
             
