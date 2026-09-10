@@ -45,8 +45,8 @@ with st.sidebar:
 
 st.title("🤖 Jarvis AI - Səsli Söhbət Otağı")
 
-# Əsas Canlı Səsli Danışıq Paneli (Brauzerin mikrofonu və səs mexanizmi birbaşa buradadır)
-st.components.v1.html(f"""
+st.components.v1.html(
+    """
     <div style="background: #1e1e1e; color: white; padding: 20px; border-radius: 12px; text-align: center; font-family: sans-serif; border: 2px solid #00ffcc;">
         <h3 style="margin-top:0; color: #00ffcc;">🎙️ Canlı Səsli Rejim</h3>
         <p id="statusText" style="color: #aaa; font-size: 14px;">Mikrofonu aktivləşdirmək üçün düyməyə basın və danışın.</p>
@@ -69,69 +69,66 @@ st.components.v1.html(f"""
             recognition.interimResults = false;
             recognition.maxAlternatives = 1;
 
-            btn.onclick = () => {{
-                if (!isListening) {{
-                    try {{
+            btn.onclick = () => {
+                if (!isListening) {
+                    try {
                         recognition.start();
-                    }} catch(e) {{
-                        // Əgər artıq işləyirsə
-                    }}
-                }} else {{
+                    } catch(e) {}
+                } else {
                     recognition.stop();
-                }}
-            }};
+                }
+            };
 
-            recognition.onstart = () => {{
+            recognition.onstart = () => {
                 isListening = true;
                 btn.style.background = '#00ffcc';
                 btn.style.color = '#000';
                 btn.innerText = '⏹️ Dinlənilir... (Dayandırmaq üçün tıkla)';
                 status.innerText = 'Danışın, Jarvis sizi dinləyir...';
-            }};
+            };
 
-            recognition.onresult = async (event) => {{
+            recognition.onresult = async (event) => {
                 const userSpeech = event.results[0][0].transcript;
                 status.innerText = "Siz dediniz: " + userSpeech;
                 
-                // Serverə məlumat göndərmək üçün Streamlit inputunu simulyasiya edirik
                 const inputField = window.parent.document.querySelector('input[aria-label*="Jarvis"]');
-                if (inputField) {{
+                if (inputField) {
                     inputField.value = userSpeech;
-                    inputField.dispatchEvent(new Event('input', {{ bubbles: true }}));
+                    inputField.dispatchEvent(new Event('input', { bubbles: true }));
                     
-                    // Enter düyməsini basırıq
-                    setTimeout(() => {{
+                    setTimeout(() => {
                         const form = window.parent.document.querySelector('form');
-                        if (form) {{
+                        if (form) {
                             const submitBtn = form.querySelector('button[type="submit"]');
                             if (submitBtn) submitBtn.click();
-                        }}
+                        }
                     }, 500);
-                }}
-            }};
+                }
+            };
 
-            recognition.onerror = (event) => {{
+            recognition.onerror = (event) => {
                 status.innerText = "Səs xətası: " + event.error;
                 resetBtn();
-            }};
+            };
 
-            recognition.onend = () => {{
+            recognition.onend = () => {
                 resetBtn();
-            }};
+            };
 
-            function resetBtn() {{
+            function resetBtn() {
                 isListening = false;
                 btn.style.background = '#ff4b4b';
                 btn.style.color = 'white';
                 btn.innerText = '🔴 Danışmağa Başla';
-            }}
-        }}
+            }
+        }
     </script>
-""", height=180)
+    """,
+    height=180,
+)
 
 st.markdown("---")
 
-# Çat mesajlarının göstərilməsi
 for idx, message in enumerate(st.session_state.messages):
     col_chat, col_action = st.columns([11, 1])
     
@@ -152,7 +149,6 @@ for idx, message in enumerate(st.session_state.messages):
         elif action == "Kopyala":
             st.code(message["content"], language="text")
 
-# Arxa fonda işləyən mətn və API qəbul mexanizmi
 with st.form(key="chat_form", clear_on_submit=True):
     prompt = st.text_input("Jarvisə nəsə de...", placeholder="Səsli danışdıqda avtomatik bura yazılacaq...")
     submit_button = st.form_submit_button("➔ Göndər")
@@ -194,7 +190,6 @@ if submit_button and prompt:
         if response_text:
             st.markdown(response_text, unsafe_allow_html=True)
             
-            # Jarvis-in səslə cavab verməsi (Brauzer daxili TTS)
             clean_speech = response_text.replace("[", "").replace("]", "").replace("(", "").replace(")", "").replace("*", "")
             st.components.v1.html(f"""
                 <script>
