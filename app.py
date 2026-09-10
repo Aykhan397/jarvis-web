@@ -3,13 +3,12 @@ from google import genai
 from google.genai import types
 from PIL import Image
 import time
+import json
 from streamlit_mic_recorder import mic_recorder
 
 st.set_page_config(page_title="Jarvis AI", page_icon="🤖", layout="wide")
 
-# İki fərqli açarı dəstəkləyən client seçici
 def get_gemini_client(attempt_index):
-    # Cəhd nömrəsinə görə açarları növbələşdiririk (0 və 2-də 1-ci açar, 1-də 2-ci açar)
     if attempt_index % 2 == 1 and "GEMINI_API_KEY_2" in st.secrets:
         key = st.secrets["GEMINI_API_KEY_2"]
     else:
@@ -38,6 +37,10 @@ with st.sidebar:
         st.session_state.messages = []
         st.session_state.voice_text = ""
         st.rerun()
+    
+    st.markdown("---")
+    st.markdown("### Səsli Rejim")
+    voice_mode = st.checkbox("🔊 Jarvis səslə danışsın", value=True)
     
     st.markdown("---")
     st.markdown("### Keçmiş Suallar")
@@ -89,7 +92,7 @@ audio_data = mic_recorder(
 )
 
 if audio_data and 'bytes' in audio_data:
-    with st.spinner("Səs mətnə çevrilir (açar dəyişdirilir)..."):
+    with st.spinner("Səs mətnə çevrilir..."):
         try:
             audio_bytes = audio_data['bytes']
             transcribe_resp = None
@@ -97,7 +100,7 @@ if audio_data and 'bytes' in audio_data:
             for attempt in range(3):
                 try:
                     time.sleep(2)
-                    client = get_gemini_client(attempt) # Hər cəhddə fərqli açar yoxlayır
+                    client = get_gemini_client(attempt)
                     transcribe_resp = client.models.generate_content(
                         model='gemini-3.6-flash',
                         contents=[
@@ -145,7 +148,7 @@ if submit_button and prompt:
             for attempt in range(3):
                 try:
                     time.sleep(2)
-                    client = get_gemini_client(attempt) # Açarlar arası avtomatik keçid
+                    client = get_gemini_client(attempt)
                     response = client.models.generate_content(
                         model='gemini-3.6-flash',
                         contents=contents,
@@ -170,5 +173,19 @@ if submit_button and prompt:
 
         if response_text:
             st.markdown(response_text, unsafe_allow_html=True)
+            
+            # Jarvis-in səsli danışması üçün brauzer səsləndirmə mexanizmi (TTS)
+            if voice_mode:
+                clean_speech = response_text.replace("[", "").replace("]", "").replace("(", "").replace(")", "").replace("*", "")
+                st.components.v1.html(f"""
+                    <script>
+                        const speech = new SpeechSynthesisUtterance();
+                        speech.text = {json.dumps(clean_speech)};
+                        speech.lang = 'az-AZ';
+                        speech.rate = 1.05;
+                        window.speechSynthesis.speak(speech);
+                    </script>
+                """, height=0)
+
             st.session_state.messages.append({"role": "assistant", "content": response_text, "image": None})
             st.rerun()
