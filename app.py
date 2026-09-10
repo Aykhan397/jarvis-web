@@ -1,10 +1,5 @@
-import sys
-import io
 import streamlit as st
 from google import genai
-
-# UTF-8 kodlaşdırma problemini tamamilə aradan qaldırmaq üçün
-sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 
 # Səhifənin tənzimləmələri
 st.set_page_config(page_title="Jarvis - AI Idareetme Paneli", page_icon="🤖", layout="wide")
@@ -26,7 +21,7 @@ system_prompts = {
     "1. Sohbet (Chat)": "Sen Jarvis-sen, dostcanli ve komekci suni intellekt komekcisisen. Azerbaycan dilinde cavab ver.",
     "2. Suretli Sual": "Sen Jarvis-sen. Verilen suallara cox qisa, deqiq ve konkret cavablar ver. Azerbaycan dilinde cavab ver.",
     "3. Kod Komekcisi": "Sen pesekar proqramlasdirma mutexessisisen. Temiz, seliqeli kodlar ve izahatlar yaz.",
-    "4. Strategiya Meslehetcisi": "Sen strateji planlasma ve meslehetci Jarvis-sen. Istifadeciye addim-addim planlar teqdim et."
+    "4. Strategiya Meslehetcisi": "Sen strateji planlasma ve meslehetci Jarvis-sen. Istifadeciye addım-addım planlar teqdim et."
 }
 
 st.title("🤖 Jarvis AI Komekcisi")
