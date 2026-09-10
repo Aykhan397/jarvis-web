@@ -41,7 +41,7 @@ mode_descriptions = {
 menu = st.sidebar.selectbox("Rejimi seç:", list(mode_descriptions.keys()))
 st.sidebar.info(mode_descriptions[menu])
 
-# Sistem təlimatları (Hava proqnozu üçün xüsusi əmr daxil edilib)
+# Sistem təlimatları
 system_prompts = {
     "1. Şəxsi Köməkçi (Hava & Konum)": f"Sən Jarvis-sən, istifadəçinin şəxsi süni intellekt köməkçisisən. İstifadəçi hava proqnozu, konum, ünvan və ya cari məlumat soruşduqda, lazım gələrsə internetdən axtarış edərək dürüst və dəqiq məlumat ver. Bütün cavablarını mütləq şəkildə '{selected_language}' dilində ver.",
     "2. Söhbət (Chat)": f"Sən Jarvis-sən, dostcanlı və köməkçi süni intellekt köməkçisisən. İstifadəçinin göndərdiyi şəkilləri təhlil edə, video linklərini şərh edə bilirsən. Cavablarını '{selected_language}' dilində ver.",
@@ -89,14 +89,14 @@ if user_input := st.chat_input("Jarvis-ə yaz... (Məsələn: 'Bakıda hava nec�
                 if image:
                     contents.append(image)
                 
+                # Səhvlərə səbəb olan sətir düzəldildi (təmiz string formatı)
                 history_context = ""
                 if save_history and len(st.session_state[menu]) > 1:
-                    history_context = "Əvvəlki söhbət tarixçəsi:\n" + "\n".join([f"{m['role']: {m['content']}}" for m in st.session_state[menu][-6:]])
+                    history_context = "Əvvəlki söhbət tarixçəsi:\n" + "\n".join([f"{m['role']}: {m['content']}" for m in st.session_state[menu][-6:]])
 
                 full_prompt = f"{system_prompts[menu]}\n\n{history_context}\n\nİstifadəçinin yeni sorğusu: {user_input}"
                 contents.append(full_prompt)
 
-                # Google Search alətini (google_search) aktivləşdiririk ki, hava proqnozu və canlı məlumatları çəkə bilsin
                 response = client.models.generate_content(
                     model='gemini-3.6-flash',
                     contents=contents,
