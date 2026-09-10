@@ -34,6 +34,10 @@ with st.sidebar:
         st.rerun()
     
     st.markdown("---")
+    st.markdown("### Tənzimləmələr")
+    voice_mode = st.checkbox("🔊 Səslə cavab vermək", value=True)
+    
+    st.markdown("---")
     st.markdown("### Keçmiş Suallar")
     if st.session_state.messages:
         for m in st.session_state.messages:
@@ -43,89 +47,9 @@ with st.sidebar:
     else:
         st.caption("Hələ ki söhbət yoxdur.")
 
-st.title("🤖 Jarvis AI - Səsli Söhbət Otağı")
+st.title("🤖 Jarvis AI")
 
-st.components.v1.html(
-    """
-    <div style="background: #1e1e1e; color: white; padding: 20px; border-radius: 12px; text-align: center; font-family: sans-serif; border: 2px solid #00ffcc;">
-        <h3 style="margin-top:0; color: #00ffcc;">🎙️ Canlı Səsli Rejim</h3>
-        <p id="statusText" style="color: #aaa; font-size: 14px;">Mikrofonu aktivləşdirmək üçün düyməyə basın və danışın.</p>
-        <button id="voiceBtn" style="background: #ff4b4b; color: white; border: none; padding: 12px 24px; font-size: 16px; border-radius: 8px; cursor: pointer; font-weight: bold; transition: 0.3s;">🔴 Danışmağa Başla</button>
-    </div>
-    
-    <script>
-        const btn = document.getElementById('voiceBtn');
-        const status = document.getElementById('statusText');
-        let isListening = false;
-
-        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        
-        if (!SpeechRecognition) {
-            status.innerText = "Brauzeriniz səs tanınmasını dəstəkləmir (Chrome istifadə edin).";
-            btn.style.display = "none";
-        } else {
-            const recognition = new SpeechRecognition();
-            recognition.lang = 'az-AZ';
-            recognition.interimResults = false;
-            recognition.maxAlternatives = 1;
-
-            btn.onclick = () => {
-                if (!isListening) {
-                    try {
-                        recognition.start();
-                    } catch(e) {}
-                } else {
-                    recognition.stop();
-                }
-            };
-
-            recognition.onstart = () => {
-                isListening = true;
-                btn.style.background = '#00ffcc';
-                btn.style.color = '#000';
-                btn.innerText = '⏹️ Dinlənilir... (Dayandırmaq üçün tıkla)';
-                status.innerText = 'Danışın, Jarvis sizi dinləyir...';
-            };
-
-            recognition.onresult = async (event) => {
-                const userSpeech = event.results[0][0].transcript;
-                status.innerText = "Siz dediniz: " + userSpeech;
-                
-                const inputField = window.parent.document.querySelector('input[aria-label*="Jarvis"]');
-                if (inputField) {
-                    inputField.value = userSpeech;
-                    inputField.dispatchEvent(new Event('input', { bubbles: true }));
-                    
-                    setTimeout(() => {
-                        const form = window.parent.document.querySelector('form');
-                        if (form) {
-                            const submitBtn = form.querySelector('button[type="submit"]');
-                            if (submitBtn) submitBtn.click();
-                        }
-                    }, 500);
-                }
-            };
-
-            recognition.onerror = (event) => {
-                status.innerText = "Səs xətası: " + event.error;
-                resetBtn();
-            };
-
-            recognition.onend = () => {
-                resetBtn();
-            };
-
-            function resetBtn() {
-                isListening = false;
-                btn.style.background = '#ff4b4b';
-                btn.style.color = 'white';
-                btn.innerText = '🔴 Danışmağa Başla';
-            }
-        }
-    </script>
-    """,
-    height=180,
-)
+uploaded_file = st.file_uploader("Şəkil əlavə et (Analiz üçün)", type=["jpg", "jpeg", "png"], label_visibility="collapsed")
 
 st.markdown("---")
 
@@ -134,6 +58,8 @@ for idx, message in enumerate(st.session_state.messages):
     
     with col_chat:
         with st.chat_message(message["role"]):
+            if "image" in message and message["image"]:
+                st.image(message["image"], width=300)
             st.markdown(message["content"], unsafe_allow_html=True)
             
     with col_action:
@@ -150,25 +76,33 @@ for idx, message in enumerate(st.session_state.messages):
             st.code(message["content"], language="text")
 
 with st.form(key="chat_form", clear_on_submit=True):
-    prompt = st.text_input("Jarvisə nəsə de...", placeholder="Səsli danışdıqda avtomatik bura yazılacaq...")
+    prompt = st.text_input("Jarvisə nəsə yaz...", placeholder="Məs: Salam Jarvis, necəsən?")
     submit_button = st.form_submit_button("➔ Göndər")
 
 if submit_button and prompt:
-    st.session_state.messages.append({"role": "user", "content": prompt})
+    img = Image.open(uploaded_file) if uploaded_file else None
+    
+    st.session_state.messages.append({"role": "user", "content": prompt, "image": img})
     
     with st.chat_message("user"):
+        if img:
+            st.image(img, width=300)
         st.markdown(prompt)
 
     with st.chat_message("assistant"):
         response_text = None
         try:
+            contents = [prompt]
+            if img:
+                contents.append(img)
+
             for attempt in range(3):
                 try:
                     time.sleep(1)
                     client = get_gemini_client(attempt)
                     response = client.models.generate_content(
                         model='gemini-3.6-flash',
-                        contents=[prompt],
+                        contents=contents,
                         config=types.GenerateContentConfig(
                             system_instruction=system_instruction_text,
                             temperature=0.1
@@ -185,21 +119,22 @@ if submit_button and prompt:
             if not response_text:
                 response_text = "⚠️ Cavab alınmadı."
         except Exception as e:
-            response_text = f"Jarvis: 429 xətası alındı. Zəhmət olmasa 10 saniyə gözlə."
+            response_text = f"Jarvis: 429 xətası alındı. Zəhmət olmasa bir az gözlə."
 
         if response_text:
             st.markdown(response_text, unsafe_allow_html=True)
             
-            clean_speech = response_text.replace("[", "").replace("]", "").replace("(", "").replace(")", "").replace("*", "")
-            st.components.v1.html(f"""
-                <script>
-                    const speech = new SpeechSynthesisUtterance();
-                    speech.text = {json.dumps(clean_speech)};
-                    speech.lang = 'az-AZ';
-                    speech.rate = 1.05;
-                    window.speechSynthesis.speak(speech);
-                </script>
-            """, height=0)
+            if voice_mode:
+                clean_speech = response_text.replace("[", "").replace("]", "").replace("(", "").replace(")", "").replace("*", "")
+                st.components.v1.html(f"""
+                    <script>
+                        const speech = new SpeechSynthesisUtterance();
+                        speech.text = {json.dumps(clean_speech)};
+                        speech.lang = 'az-AZ';
+                        speech.rate = 1.05;
+                        window.speechSynthesis.speak(speech);
+                    </script>
+                """, height=0)
 
-            st.session_state.messages.append({"role": "assistant", "content": response_text})
+            st.session_state.messages.append({"role": "assistant", "content": response_text, "image": None})
             st.rerun()
