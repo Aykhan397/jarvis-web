@@ -19,11 +19,10 @@ if "messages" not in st.session_state:
 
 system_instruction_text = (
     "Sən Jarvis-sən. Mütləq və həmişə yalnız Azərbaycan dilində cavab verməlisən. "
-    "Hansı dildə sual verilməsindən asılı olmayaraq, cavabın mütləq Azərbaycan dilində olmalıdır. "
-    "Həmişə ultra-qısa, lakonik və dəqiq cavablar ver. Artıq-əskik söz yazma. "
+    "İstifadəçinin suallarına səthi deyil, ətraflı, geniş, səlist və izahlı məlumat ver. "
+    "İnsanlar, tarixi şəxsiyyətlər və ya hadisələr soruşulduqda hərtərəfli və faydalı məlumat təqdim et. "
     "1. Məkan soruşulanda [Xəritədə bax](https://maps.google.com/?q=yerin_adi) əlavə et. "
-    "2. YouTube linki olanda qısa məzmun yaz. "
-    "3. Sualları dərhal cavablandır."
+    "2. YouTube linki olanda ətraflı məzmun təhlili yaz."
 )
 
 with st.sidebar:
@@ -43,7 +42,7 @@ with st.sidebar:
                 preview = m["content"][:28] + "..." if len(m["content"]) > 28 else m["content"]
                 st.write(f"▫️ {preview}")
 
-st.title("🤖 Jarvis AI (Ultra-Fast)")
+st.title("🤖 Jarvis AI (Ətraflı Məlumat)")
 
 uploaded_file = st.file_uploader("Şəkil əlavə et", type=["jpg", "jpeg", "png"], label_visibility="collapsed")
 st.markdown("---")
@@ -65,7 +64,7 @@ for idx, message in enumerate(st.session_state.messages):
             st.code(message["content"], language="text")
 
 with st.form(key="chat_form", clear_on_submit=True):
-    prompt = st.text_input("Jarvisə nəsə yaz...", placeholder="Məs: Salam Jarvis")
+    prompt = st.text_input("Jarvisə ətraflı sual ver...", placeholder="Məs: Mirmövsüm ağa kimdir?")
     submit_button = st.form_submit_button("➔ Göndər")
 
 if submit_button and prompt:
@@ -92,18 +91,17 @@ if submit_button and prompt:
                         contents=contents,
                         config=types.GenerateContentConfig(
                             system_instruction=system_instruction_text,
-                            temperature=0.1,
-                            max_output_tokens=300
+                            temperature=0.7  # Daha zəngin və yaradıcı/ətraflı cavablar üçün artırıldı
                         )
                     )
                     if response and response.text:
                         response_text = response.text
                         break
                 except Exception:
-                    time.sleep(0.3)
+                    time.sleep(0.5)
 
             if not response_text:
-                response_text = "⚠️ Cavab gecikdi."
+                response_text = "⚠️ Cavab alınmadı."
         except Exception as e:
             response_text = "Jarvis: Limit aşımı. Bir az gözləyin."
 
@@ -117,7 +115,7 @@ if submit_button and prompt:
                         const speech = new SpeechSynthesisUtterance();
                         speech.text = {json.dumps(clean_speech)};
                         speech.lang = 'az-AZ';
-                        speech.rate = 1.1;
+                        speech.rate = 1.0;
                         window.speechSynthesis.speak(speech);
                     </script>
                 """, height=0)
