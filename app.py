@@ -1,11 +1,11 @@
 import streamlit as st
 from google import genai
 
-# Səhifənin tənzimləmələri
+# Sehifenin tenzimlemeleri
 st.set_page_config(page_title="Jarvis - AI Idareetme Paneli", page_icon="🤖", layout="wide")
 
-# API açarı (öz açarını bura yaz və ya Streamlit secrets istifadə et)
-api_key = st.secrets.get("GEMINI_API_KEY") or "SƏNİN_GEMİNİ_APİ_AÇARIN"
+# API açari
+api_key = st.secrets.get("GEMINI_API_KEY") or "SENIN_GEMINI_API_ACARIN"
 
 client = genai.Client(api_key=api_key)
 
@@ -21,7 +21,7 @@ system_prompts = {
     "1. Sohbet (Chat)": "Sen Jarvis-sen, dostcanli ve komekci suni intellekt komekcisisen. Azerbaycan dilinde cavab ver.",
     "2. Suretli Sual": "Sen Jarvis-sen. Verilen suallara cox qisa, deqiq ve konkret cavablar ver. Azerbaycan dilinde cavab ver.",
     "3. Kod Komekcisi": "Sen pesekar proqramlasdirma mutexessisisen. Temiz, seliqeli kodlar ve izahatlar yaz.",
-    "4. Strategiya Meslehetcisi": "Sen strateji planlasma ve meslehetci Jarvis-sen. Istifadeciye addım-addım planlar teqdim et."
+    "4. Strategiya Meslehetcisi": "Sen strateji planlasma ve meslehetci Jarvis-sen. Istifadeciye addim-addim planlar teqdim et."
 }
 
 st.title("🤖 Jarvis AI Komekcisi")
