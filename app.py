@@ -1,14 +1,20 @@
 import streamlit as st
 from google import genai
 
-# Sehifenin tenzimlemeleri
-st.set_page_config(page_title="Jarvis - AI Idareetme Paneli", page_icon="🤖", layout="wide")
+# Səhifənin tənzimləmələri
+st.set_page_config(page_title="Jarvis - AI İdarəetmə Paneli", page_icon="🤖", layout="wide")
 
-# API açarını bura yaz (və ya Streamlit secrets istifadə et)
-api_key = st.secrets.get("GEMINI_API_KEY") or "BURAYA_OZ_API_ACARINI_YAZ"
+# Təhlükəsizlik üçün API açarını birbaşa Streamlit Secrets-dən oxuyuruq
+try:
+    api_key = st.secrets["GEMINI_API_KEY"]
+except Exception:
+    st.error("Xəta: Streamlit Secrets bölməsində 'GEMINI_API_KEY' tapılmadı! Zəhmət olmasa Secrets ayarlarını yoxlayın.")
+    st.stop()
 
+# GenAI müştərisini başladırıq
 client = genai.Client(api_key=api_key)
 
+# Sol menyu və rejimlər
 st.sidebar.title("JARVIS v1.0")
 menu = st.sidebar.selectbox("Rejimi seç:", [
     "1. Söhbət (Chat)", 
@@ -27,16 +33,16 @@ system_prompts = {
 st.title("🤖 Jarvis AI Köməkçisi")
 st.write(f"Hazırkı rejim: **{menu}**")
 
-# Söhbət tarixçəsini saxlamaq üçün
+# Hər rejim üçün ayrı söhbət tarixçəsi (session state) yaradırıq
 if menu not in st.session_state:
     st.session_state[menu] = []
 
-# Əvvəlki mesajları göstər
+# Əvvəlki mesajları ekrana çap edirik
 for msg in st.session_state[menu]:
     with st.chat_message(msg["role"]):
         st.markdown(msg["content"])
 
-# İstifadəçidən input almaq
+# İstifadəçidən mesaj qəbulu
 if user_input := st.chat_input("Jarvis-ə bir şey yaz..."):
     st.session_state[menu].append({"role": "user", "content": user_input})
     with st.chat_message("user"):
