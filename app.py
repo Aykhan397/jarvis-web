@@ -98,7 +98,7 @@ if user_input := st.chat_input("Jarvis-ə yaz... (Məsələn: 'Bakıda hava nec�
 
                 # Google Search alətini (google_search) aktivləşdiririk ki, hava proqnozu və canlı məlumatları çəkə bilsin
                 response = client.models.generate_content(
-                    model='gemini-2.5-flash',
+                    model='gemini-3.6-flash',
                     contents=contents,
                     config={
                         'tools': [{'google_search': {}}]
