@@ -7,9 +7,14 @@ from streamlit_mic_recorder import mic_recorder
 
 st.set_page_config(page_title="Jarvis AI", page_icon="🤖", layout="wide")
 
-@st.cache_resource
-def get_gemini_client():
-    return genai.Client(api_key=st.secrets["GEMINI_API_KEY"])
+# İki fərqli açarı dəstəkləyən client seçici
+def get_gemini_client(attempt_index):
+    # Cəhd nömrəsinə görə açarları növbələşdiririk (0 və 2-də 1-ci açar, 1-də 2-ci açar)
+    if attempt_index % 2 == 1 and "GEMINI_API_KEY_2" in st.secrets:
+        key = st.secrets["GEMINI_API_KEY_2"]
+    else:
+        key = st.secrets.get("GEMINI_API_KEY_1", st.secrets.get("GEMINI_API_KEY"))
+    return genai.Client(api_key=key)
 
 if "messages" not in st.session_state:
     st.session_state.messages = []
@@ -84,15 +89,15 @@ audio_data = mic_recorder(
 )
 
 if audio_data and 'bytes' in audio_data:
-    with st.spinner("Səs mətnə çevrilir (gözlənilir)..."):
+    with st.spinner("Səs mətnə çevrilir (açar dəyişdirilir)..."):
         try:
-            client = get_gemini_client()
             audio_bytes = audio_data['bytes']
-            
             transcribe_resp = None
+            
             for attempt in range(3):
                 try:
-                    time.sleep(3) # Hər cəhd arasında 3 saniyə gözləmə
+                    time.sleep(2)
+                    client = get_gemini_client(attempt) # Hər cəhddə fərqli açar yoxlayır
                     transcribe_resp = client.models.generate_content(
                         model='gemini-3.6-flash',
                         contents=[
@@ -105,14 +110,14 @@ if audio_data and 'bytes' in audio_data:
                 except Exception as err:
                     if attempt == 2:
                         raise err
-                    time.sleep(5) # Xəta aldıqda 5 saniyə gözləyib yenidən cəhd et
+                    time.sleep(4)
 
             if transcribe_resp and transcribe_resp.text:
                 st.session_state.voice_text = transcribe_resp.text.strip()
                 st.success("Səs yazıya çevrildi!")
                 st.rerun()
         except Exception as e:
-            st.error(f"Limit xətası (429): API həddindən artıq sorğu aldı. Bir az gözləyib yenidən cəhd et.")
+            st.error(f"Hər iki açar limitə düşdü (429). 10-15 saniyə gözləyib yenidən cəhd et.")
 
 with st.form(key="chat_form", clear_on_submit=True):
     prompt = st.text_input("Jarvisə nəsə de və ya link yapışdır...", value=st.session_state.voice_text, placeholder="Məs: https://youtube.com/... bu videoda nə var?")
@@ -133,14 +138,14 @@ if submit_button and prompt:
         response_text = None
         
         try:
-            client = get_gemini_client()
             contents = [prompt]
             if img:
                 contents.append(img)
 
             for attempt in range(3):
                 try:
-                    time.sleep(3) # Sorğudan əvvəl 3 saniyə fasilə
+                    time.sleep(2)
+                    client = get_gemini_client(attempt) # Açarlar arası avtomatik keçid
                     response = client.models.generate_content(
                         model='gemini-3.6-flash',
                         contents=contents,
@@ -155,13 +160,13 @@ if submit_button and prompt:
                 except Exception as err:
                     if attempt == 2:
                         raise err
-                    time.sleep(6) # 429 xətası zamanı 6 saniyə gözləyib təkrar yoxlayır
+                    time.sleep(4)
 
             if not response_text:
                 response_text = "⚠️ Cavab alınmadı, limit dolmuş ola bilər."
 
         except Exception as e:
-            response_text = f"Xəta baş verdi (429 Quota): Zəhmət olmasa 10-15 saniyə gözləyib təkrar yaz."
+            response_text = f"Jarvis: 429 xətası alındı. Hər iki açar limitə çatıb, zəhmət olmasa 10-15 saniyə gözlə."
 
         if response_text:
             st.markdown(response_text, unsafe_allow_html=True)
