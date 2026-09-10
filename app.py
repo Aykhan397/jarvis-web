@@ -4,6 +4,18 @@ from PIL import Image
 
 st.set_page_config(page_title="Jarvis AI", page_icon="🤖", layout="wide")
 
+# Telefonda uzun mesajları oxuyarkən ekranın yenilənməsinin (pull-to-refresh) qarşısını alan CSS
+st.markdown(
+    """
+    <style>
+    body, html, .stApp {
+        overscroll-behavior-y: none;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+
 try:
     api_key = st.secrets["GEMINI_API_KEY"]
 except Exception:
@@ -153,7 +165,6 @@ if user_input := st.chat_input(t["chat_input"]):
                 full_prompt = f"{system_prompts[menu]}\n\n{history_context}\n\nUser query: {user_input}"
                 contents.append(full_prompt)
 
-                # Axtarış aləti tamamilə silindi ki, 429 xətası bir daha heç vaxt çıxmasın
                 response = client.models.generate_content(
                     model='gemini-3.6-flash',
                     contents=contents,
