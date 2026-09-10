@@ -42,7 +42,7 @@ with st.sidebar:
                 preview = m["content"][:28] + "..." if len(m["content"]) > 28 else m["content"]
                 st.write(f"▫️ {preview}")
 
-st.title("🤖 Jarvis AI (Ətraflı Məlumat)")
+st.title("🤖 Jarvis AI")
 
 uploaded_file = st.file_uploader("Şəkil əlavə et", type=["jpg", "jpeg", "png"], label_visibility="collapsed")
 st.markdown("---")
@@ -91,7 +91,7 @@ if submit_button and prompt:
                         contents=contents,
                         config=types.GenerateContentConfig(
                             system_instruction=system_instruction_text,
-                            temperature=0.7  # Daha zəngin və yaradıcı/ətraflı cavablar üçün artırıldı
+                            temperature=0.7
                         )
                     )
                     if response and response.text:
