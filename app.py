@@ -53,7 +53,7 @@ if user_input := st.chat_input("Jarvis-ə bir şey yaz..."):
             try:
                 prompt = f"{system_prompts[menu]}\n\nİstifadəçi: {user_input}"
                 response = client.models.generate_content(
-                    model='gemini-2.5-flash',
+                    model='gemini-3.6-flash',
                     contents=prompt,
                 )
                 reply = response.text
