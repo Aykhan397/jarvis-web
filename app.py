@@ -1,7 +1,6 @@
 import streamlit as st
 from google import genai
 from PIL import Image
-import requests  # MacroDroid Webhook sorğuları üçün əlavə olundu
 
 st.set_page_config(page_title="Jarvis AI", page_icon="🤖", layout="wide")
 
@@ -140,14 +139,6 @@ if user_input := st.chat_input(t["chat_input"]):
         if uploaded_file:
             st.image(uploaded_file, width=150)
 
-    # MacroDroid Webhook İnteqrasiyası: İstifadəçi mesajında "budilnik" sözü keçərsə
-    if "budilnik" in user_input.lower():
-        webhook_url = "https://trigger.macrodroid.com/4b4a1226-dda0-44e9-b494-75ff57fcfbc5/"
-        try:
-            requests.get(webhook_url, timeout=5)
-        except Exception:
-            pass # Bağlantı xətası olsa belə söhbətin pozulmasının qarşısını alır
-
     with st.chat_message("assistant"):
         with st.spinner(t["thinking"]):
             try:
@@ -162,16 +153,12 @@ if user_input := st.chat_input(t["chat_input"]):
                 full_prompt = f"{system_prompts[menu]}\n\n{history_context}\n\nUser query: {user_input}"
                 contents.append(full_prompt)
 
+                # Axtarış aləti tamamilə silindi ki, 429 xətası bir daha heç vaxt çıxmasın
                 response = client.models.generate_content(
                     model='gemini-3.6-flash',
                     contents=contents,
                 )
                 reply = response.text
-                
-                # Əgər budilnik əmri verilibsə, cavaba əlavə təsdiq mətni də qata bilərik
-                if "budilnik" in user_input.lower():
-                    reply += "\n\n⏰ *Budilnik əmri MacroDroid vasitəsilə telefona göndərildi!*"
-
             except Exception as e:
                 reply = f"{t['error']} {str(e)}"
             
