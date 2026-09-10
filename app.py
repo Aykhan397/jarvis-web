@@ -4,10 +4,6 @@ from google.genai import types
 import time
 import json
 
-# ============================================================
-# PAGE
-# ============================================================
-
 st.set_page_config(
     page_title="Jarvis AI",
     page_icon="🤖",
@@ -15,7 +11,7 @@ st.set_page_config(
 )
 
 # ============================================================
-# GEMINI CLIENT
+# GEMINI
 # ============================================================
 
 def get_gemini_client(attempt_index=0):
@@ -34,42 +30,32 @@ def get_gemini_client(attempt_index=0):
 
 
 # ============================================================
-# SESSION STATE
+# SESSION
 # ============================================================
 
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-if "jarvis_enabled" not in st.session_state:
-    st.session_state.jarvis_enabled = False
+if "voice_started" not in st.session_state:
+    st.session_state.voice_started = False
 
 
 # ============================================================
-# JARVIS PERSONALITY
+# JARVIS INSTRUCTION
 # ============================================================
 
-system_instruction_text = """
-Sən Jarvis-sən.
-
-Azərbaycan dilində və digər dillərdə mükəmməl ünsiyyət qur.
-Cavabların qısa, lakonik, sürətli və dəqiq olsun.
-Lazımsız uzun izahlardan qaç.
-
-1. İnsan adları soruşulduqda qısa və faydalı məlumat ver.
-
-2. Məkan və ya ziyarətgah adı çəkildikdə həmin yer üçün
-Google Maps linki əlavə et.
-
-Format:
-[Xəritədə bax](https://maps.google.com/?q=yerin_adi)
-
-3. İstifadəçi YouTube linki və ya Shorts linki göndərdikdə
-mümkün olan məlumatları təhlil et.
-
-4. İstifadəçinin sualına birbaşa cavab ver.
-
-5. Səsli istifadə üçün cavabları çox uzun etmə.
-"""
+system_instruction_text = (
+    "Sən Jarvis-sən. Azərbaycan dilində və istənilən digər dildə "
+    "mükəmməl ünsiyyət quran, sadiq və son dərəcə zəkisan. "
+    "Həmişə qısa, lakonik, sürətli və dəqiq cavablar ver. "
+    "Artıq-əskik cümlələr yazma. "
+    "1. İnsan adları soruşulduqda onları tanı və qısa məlumat ver. "
+    "2. Məkan və ya ziyarətgah adı çəkildikdə birbaşa Google Maps "
+    "linki əlavə et: [Xəritədə bax](https://maps.google.com/?q=yerin_adi). "
+    "3. İstifadəçi YouTube və ya Shorts linki göndərdikdə mümkün "
+    "olan məlumatları təhlil et. "
+    "4. Suallara gecikdirmədən, dəqiq cavab ver."
+)
 
 
 # ============================================================
@@ -77,35 +63,23 @@ mümkün olan məlumatları təhlil et.
 # ============================================================
 
 with st.sidebar:
-
     st.title("💬 Söhbətlər")
 
-    if st.button(
-        "➕ Yeni Söhbət",
-        use_container_width=True
-    ):
+    if st.button("➕ Yeni Söhbət", use_container_width=True):
         st.session_state.messages = []
         st.rerun()
 
     st.markdown("---")
-
     st.markdown("### Keçmiş Suallar")
 
     if st.session_state.messages:
-
-        for message in st.session_state.messages:
-
-            if message["role"] == "user":
-
-                preview = message["content"]
-
+        for m in st.session_state.messages:
+            if m["role"] == "user":
+                preview = m["content"]
                 if len(preview) > 28:
-                    preview = preview[:28] + "..."
-
+                    preview += "..."
                 st.write("▫️ " + preview)
-
     else:
-
         st.caption("Hələ ki söhbət yoxdur.")
 
 
@@ -114,21 +88,18 @@ with st.sidebar:
 # ============================================================
 
 st.title("🤖 Jarvis AI")
-
-st.caption(
-    'Wake word: "Hey Jarvis"'
-)
+st.caption('Wake word: "Hey Jarvis"')
 
 
 # ============================================================
-# JARVIS ACTIVATION
+# VOICE ACTIVATION
 # ============================================================
 
-if not st.session_state.jarvis_enabled:
-
+if not st.session_state.voice_started:
     st.info(
-        '🎤 İlk dəfə istifadə edərkən aşağıdakı düyməyə bas '
-        'və mikrofon icazəsi ver.'
+        'İlk dəfə istifadə edərkən "JARVIS-i AKTİVLƏŞDİR" '
+        'düyməsinə bir dəfə basın. Bu, Android/Chrome-un '
+        'mikrofon icazəsi tələb etməsi üçündür.'
     )
 
     if st.button(
@@ -136,52 +107,35 @@ if not st.session_state.jarvis_enabled:
         use_container_width=True,
         type="primary"
     ):
-        st.session_state.jarvis_enabled = True
+        st.session_state.voice_started = True
         st.rerun()
 
 
-# ============================================================
-# VOICE SYSTEM
-# ============================================================
-
-if st.session_state.jarvis_enabled:
+if st.session_state.voice_started:
 
     st.components.v1.html(
         """
         <div style="
             background:#151515;
             color:white;
-            padding:22px;
+            padding:20px;
             border-radius:16px;
             text-align:center;
             font-family:Arial,sans-serif;
             border:2px solid #00ffcc;
         ">
+            <div style="font-size:42px;">🤖</div>
 
-            <div style="
-                font-size:42px;
-                margin-bottom:5px;
-            ">
-                🤖
-            </div>
-
-            <h2 style="
-                color:#00ffcc;
-                margin:5px;
-            ">
+            <h2 style="color:#00ffcc;margin:5px;">
                 JARVIS
             </h2>
 
             <p id="jarvisStatus"
-               style="
-                    color:#aaa;
-                    font-size:15px;
-                    margin:10px;
-               ">
+               style="color:#aaa;font-size:15px;">
                 👂 "Hey Jarvis" gözlənilir...
             </p>
 
-            <div id="circle"
+            <div id="jarvisDot"
                  style="
                     width:16px;
                     height:16px;
@@ -191,53 +145,31 @@ if st.session_state.jarvis_enabled:
                     box-shadow:0 0 15px #ff3333;
                  ">
             </div>
-
         </div>
 
-
         <script>
+        (function () {
 
-        // ====================================================
-        // JARVIS VOICE SYSTEM
-        // ====================================================
+            const status =
+                document.getElementById("jarvisStatus");
 
-        const status =
-            document.getElementById("jarvisStatus");
+            const dot =
+                document.getElementById("jarvisDot");
 
-        const circle =
-            document.getElementById("circle");
+            const SpeechRecognition =
+                window.SpeechRecognition ||
+                window.webkitSpeechRecognition;
 
-
-        const SpeechRecognition =
-            window.SpeechRecognition ||
-            window.webkitSpeechRecognition;
-
-
-        // ====================================================
-        // BROWSER SUPPORT
-        // ====================================================
-
-        if (!SpeechRecognition) {
-
-            status.innerText =
-                "❌ Bu brauzer səs tanımanı dəstəkləmir. Chrome istifadə edin.";
-
-            circle.style.background = "#ff0000";
-
-        } else {
+            if (!SpeechRecognition) {
+                status.innerText =
+                    "❌ Chrome səs tanımanı dəstəkləmir.";
+                return;
+            }
 
             let recognition = null;
-
             let listening = false;
-
             let mode = "wake";
-
             let restarting = false;
-
-
-            // =================================================
-            // WAKE WORDS
-            // =================================================
 
             const wakeWords = [
                 "hey jarvis",
@@ -249,310 +181,167 @@ if st.session_state.jarvis_enabled:
                 "jarvis"
             ];
 
-
-            // =================================================
-            // NORMALIZE TEXT
-            // =================================================
-
             function normalize(text) {
-
                 return text
                     .toLowerCase()
                     .trim()
                     .replace(/[.,!?]/g, "");
-
             }
 
-
-            // =================================================
-            // UPDATE UI
-            // =================================================
-
-            function setWakeUI() {
-
+            function wakeUI() {
                 status.innerText =
                     '👂 "Hey Jarvis" gözlənilir...';
 
-                circle.style.background =
-                    "#ff3333";
-
-                circle.style.boxShadow =
+                dot.style.background = "#ff3333";
+                dot.style.boxShadow =
                     "0 0 15px #ff3333";
-
             }
 
-
-            function setListeningUI() {
-
+            function commandUI() {
                 status.innerText =
                     "🎤 Sizi dinləyirəm...";
 
-                circle.style.background =
-                    "#00ffcc";
-
-                circle.style.boxShadow =
+                dot.style.background = "#00ffcc";
+                dot.style.boxShadow =
                     "0 0 25px #00ffcc";
-
             }
 
-
-            // =================================================
-            // CREATE RECOGNIZER
-            // =================================================
-
-            function createRecognizer() {
+            function createRecognition() {
 
                 const r = new SpeechRecognition();
 
                 r.lang = "az-AZ";
-
                 r.continuous = false;
-
                 r.interimResults = false;
-
                 r.maxAlternatives = 5;
 
-
-                // =============================================
-                // START
-                // =============================================
-
-                r.onstart = function() {
-
+                r.onstart = function () {
                     listening = true;
 
                     if (mode === "wake") {
-                        setWakeUI();
+                        wakeUI();
                     } else {
-                        setListeningUI();
+                        commandUI();
                     }
-
                 };
 
-
-                // =============================================
-                // RESULT
-                // =============================================
-
-                r.onresult = function(event) {
+                r.onresult = function (event) {
 
                     listening = false;
 
-                    let text =
-                        event.results[0][0].transcript;
-
-                    text = normalize(text);
-
+                    const text =
+                        normalize(
+                            event.results[0][0].transcript
+                        );
 
                     console.log(
                         "JARVIS heard:",
                         text
                     );
 
-
-                    // =========================================
-                    // WAKE MODE
-                    // =========================================
+                    // -------------------------------
+                    // WAKE WORD
+                    // -------------------------------
 
                     if (mode === "wake") {
 
                         let activated = false;
 
-
-                        for (
-                            let i = 0;
-                            i < wakeWords.length;
-                            i++
-                        ) {
-
-                            if (
-                                text.includes(
-                                    wakeWords[i]
-                                )
-                            ) {
-
+                        for (const word of wakeWords) {
+                            if (text.includes(word)) {
                                 activated = true;
                                 break;
-
                             }
-
                         }
 
+                        if (!activated) {
+                            restartWake();
+                            return;
+                        }
 
-                        if (activated) {
+                        mode = "command";
 
-                            mode = "command";
+                        status.innerText =
+                            "🤖 JARVIS aktivləşdi!";
 
+                        dot.style.background = "#00ffcc";
+                        dot.style.boxShadow =
+                            "0 0 30px #00ffcc";
 
-                            status.innerText =
-                                "🤖 JARVIS aktivləşdi!";
-
-
-                            circle.style.background =
-                                "#00ffcc";
-
-
-                            circle.style.boxShadow =
-                                "0 0 30px #00ffcc";
-
-
-                            // =================================
-                            // JARVIS RESPONSE
-                            // =================================
-
-                            const answer =
-                                new SpeechSynthesisUtterance(
-                                    "Bəli, sizi dinləyirəm."
-                                );
-
-
-                            answer.lang = "az-AZ";
-
-                            answer.rate = 1.05;
-
-                            answer.pitch = 1.0;
-
-
-                            answer.onend = function() {
-
-                                setTimeout(
-                                    function() {
-
-                                        startRecognition();
-
-                                    },
-                                    300
-                                );
-
-                            };
-
-
-                            window.speechSynthesis.cancel();
-
-                            window.speechSynthesis.speak(
-                                answer
+                        const answer =
+                            new SpeechSynthesisUtterance(
+                                "Bəli, sizi dinləyirəm."
                             );
 
+                        answer.lang = "az-AZ";
+                        answer.rate = 1.05;
+                        answer.pitch = 1.0;
 
-                        } else {
+                        answer.onend = function () {
+                            setTimeout(
+                                startRecognition,
+                                300
+                            );
+                        };
 
-                            restartWake();
-
-                        }
-
+                        window.speechSynthesis.cancel();
+                        window.speechSynthesis.speak(answer);
 
                         return;
                     }
 
-
-                    // =========================================
-                    // COMMAND MODE
-                    // =========================================
+                    // -------------------------------
+                    // COMMAND
+                    // -------------------------------
 
                     if (mode === "command") {
 
                         if (!text) {
-
                             restartWake();
-
                             return;
-
                         }
-
 
                         status.innerText =
                             "Siz dediniz: " + text;
 
-
                         sendToStreamlit(text);
 
-
                         mode = "wake";
-
                     }
-
                 };
 
-
-                // =============================================
-                // ERROR
-                // =============================================
-
-                r.onerror = function(event) {
+                r.onerror = function (event) {
 
                     console.log(
-                        "Recognition error:",
+                        "Speech error:",
                         event.error
                     );
 
-
                     listening = false;
 
-
-                    if (
-                        event.error ===
-                        "not-allowed"
-                    ) {
-
+                    if (event.error === "not-allowed") {
                         status.innerText =
                             "❌ Mikrofon icazəsi verilməyib.";
-
-                        circle.style.background =
-                            "#ff0000";
-
+                        dot.style.background = "#ff0000";
                         return;
-
                     }
-
-
-                    if (
-                        event.error ===
-                        "service-not-allowed"
-                    ) {
-
-                        status.innerText =
-                            "❌ Brauzer səs xidmətinə icazə vermədi.";
-
-                        return;
-
-                    }
-
 
                     if (mode === "wake") {
-
                         restartWake();
-
                     }
-
                 };
 
-
-                // =============================================
-                // END
-                // =============================================
-
-                r.onend = function() {
+                r.onend = function () {
 
                     listening = false;
 
-
                     if (mode === "wake") {
-
                         restartWake();
-
                     }
-
                 };
 
-
                 return r;
-
             }
-
-
-            // =================================================
-            // START
-            // =================================================
 
             function startRecognition() {
 
@@ -560,31 +349,19 @@ if st.session_state.jarvis_enabled:
                     return;
                 }
 
-
                 try {
-
                     recognition =
-                        createRecognizer();
+                        createRecognition();
 
                     recognition.start();
 
                 } catch (error) {
-
                     console.log(
-                        "Start error:",
+                        "Recognition start error:",
                         error
                     );
-
-                    listening = false;
-
                 }
-
             }
-
-
-            // =================================================
-            // RESTART
-            // =================================================
 
             function restartWake() {
 
@@ -592,29 +369,16 @@ if st.session_state.jarvis_enabled:
                     return;
                 }
 
-
                 restarting = true;
-
                 mode = "wake";
 
+                setTimeout(function () {
 
-                setTimeout(
-                    function() {
+                    restarting = false;
+                    startRecognition();
 
-                        restarting = false;
-
-                        startRecognition();
-
-                    },
-                    700
-                );
-
+                }, 700);
             }
-
-
-            // =================================================
-            // SEND TEXT TO STREAMLIT
-            // =================================================
 
             function sendToStreamlit(text) {
 
@@ -623,99 +387,60 @@ if st.session_state.jarvis_enabled:
                         'input[aria-label="Jarvisə nəsə de..."]'
                     );
 
-
                 if (!input) {
 
-                    console.log(
-                        "Streamlit input tapılmadı."
-                    );
-
                     status.innerText =
-                        "⚠️ Mətn sahəsi tapılmadı.";
+                        "⚠️ Jarvis mətn sahəsi tapılmadı.";
 
                     restartWake();
-
                     return;
-
                 }
 
-
-                // =============================================
-                // SET INPUT VALUE
-                // =============================================
-
-                const nativeSetter =
+                const setter =
                     Object.getOwnPropertyDescriptor(
                         HTMLInputElement.prototype,
                         "value"
                     ).set;
 
-
-                nativeSetter.call(
-                    input,
-                    text
-                );
-
+                setter.call(input, text);
 
                 input.dispatchEvent(
                     new Event(
                         "input",
-                        {
-                            bubbles: true
-                        }
+                        { bubbles: true }
                     )
                 );
 
+                setTimeout(function () {
 
-                // =============================================
-                // SUBMIT
-                // =============================================
+                    const form =
+                        input.closest("form");
 
-                setTimeout(
-                    function() {
+                    if (!form) {
+                        restartWake();
+                        return;
+                    }
 
-                        const form =
-                            input.closest("form");
+                    const button =
+                        form.querySelector(
+                            'button[type="submit"]'
+                        );
 
+                    if (button) {
+                        button.click();
+                    }
 
-                        if (form) {
-
-                            const button =
-                                form.querySelector(
-                                    'button[type="submit"]'
-                                );
-
-
-                            if (button) {
-
-                                button.click();
-
-                            }
-
-                        }
-
-                    },
-                    400
-                );
-
+                }, 500);
             }
 
-
-            // =================================================
-            // START AFTER PAGE LOAD
-            // =================================================
-
+            // Start listening after the page has loaded.
+            // Chrome may require microphone permission first.
             setTimeout(
-                function() {
-
-                    startRecognition();
-
-                },
-                1000
+                startRecognition,
+                800
             );
 
-        }
-
+        })();
         </script>
         """,
         height=220
@@ -728,53 +453,31 @@ if st.session_state.jarvis_enabled:
 
 st.markdown("---")
 
+for idx, message in enumerate(st.session_state.messages):
 
-for idx, message in enumerate(
-    st.session_state.messages
-):
-
-    col_chat, col_action = st.columns(
-        [11, 1]
-    )
-
+    col_chat, col_action = st.columns([11, 1])
 
     with col_chat:
-
-        with st.chat_message(
-            message["role"]
-        ):
-
+        with st.chat_message(message["role"]):
             st.markdown(
                 message["content"],
                 unsafe_allow_html=True
             )
 
-
     with col_action:
 
         action = st.selectbox(
             "⚙️",
-            [
-                "Seç",
-                "Sil",
-                "Kopyala"
-            ],
+            ["Seç", "Sil", "Kopyala"],
             key=f"act_{idx}",
             label_visibility="collapsed"
         )
 
-
         if action == "Sil":
-
-            st.session_state.messages.pop(
-                idx
-            )
-
+            st.session_state.messages.pop(idx)
             st.rerun()
 
-
         elif action == "Kopyala":
-
             st.code(
                 message["content"],
                 language="text"
@@ -782,7 +485,7 @@ for idx, message in enumerate(
 
 
 # ============================================================
-# CHAT INPUT
+# TEXT INPUT
 # ============================================================
 
 with st.form(
@@ -792,9 +495,8 @@ with st.form(
 
     prompt = st.text_input(
         "Jarvisə nəsə de...",
-        placeholder="Hey Jarvis deyin..."
+        placeholder='Məsələn: "Bakının paytaxt olduğunu de"'
     )
-
 
     submit_button = st.form_submit_button(
         "➔ Göndər"
@@ -802,7 +504,7 @@ with st.form(
 
 
 # ============================================================
-# GEMINI
+# GEMINI REQUEST
 # ============================================================
 
 if submit_button and prompt:
@@ -814,93 +516,57 @@ if submit_button and prompt:
         }
     )
 
-
     with st.chat_message("user"):
-
         st.markdown(prompt)
-
 
     with st.chat_message("assistant"):
 
         response_text = None
 
-
-        # ================================================
-        # API REQUEST
-        # ================================================
-
         try:
 
             last_error = None
-
 
             for attempt in range(3):
 
                 try:
 
-                    client = get_gemini_client(
-                        attempt
-                    )
+                    client = get_gemini_client(attempt)
 
-
-                    response = (
-                        client.models.generate_content(
-                            model="gemini-3.7-flash",
-                            contents=prompt,
-                            config=types.GenerateContentConfig(
-                                system_instruction=
-                                    system_instruction_text,
-                                temperature=0.2
-                            )
+                    response = client.models.generate_content(
+                        model="gemini-3.6-flash",
+                        contents=prompt,
+                        config=types.GenerateContentConfig(
+                            system_instruction=
+                                system_instruction_text,
+                            temperature=0.1
                         )
                     )
-
 
                     if response and response.text:
-
-                        response_text = (
-                            response.text.strip()
-                        )
-
+                        response_text = response.text.strip()
                         break
-
 
                 except Exception as error:
 
                     last_error = error
 
                     if attempt < 2:
-
                         time.sleep(2)
 
-
             if not response_text:
+                response_text = "⚠️ Cavab alınmadı."
 
-                response_text = (
-                    "⚠️ Jarvis cavab yarada bilmədi."
-                )
-
-
-        except Exception as error:
+        except Exception:
 
             response_text = (
                 "⚠️ Gemini API ilə əlaqə zamanı xəta baş verdi."
             )
 
-
-        # ================================================
-        # SHOW RESPONSE
-        # ================================================
-
         st.markdown(
             response_text,
             unsafe_allow_html=True
         )
-
-
-        # ================================================
-        # SAVE
-        # ================================================
 
         st.session_state.messages.append(
             {
@@ -909,10 +575,9 @@ if submit_button and prompt:
             }
         )
 
-
-        # ================================================
+        # ====================================================
         # TEXT TO SPEECH
-        # ================================================
+        # ====================================================
 
         clean_speech = (
             response_text
@@ -921,36 +586,43 @@ if submit_button and prompt:
             .replace("*", "")
         )
 
+        # IMPORTANT:
+        # No Python f-string here.
+        # This prevents the previous f-string syntax error.
+
+        speech_json = json.dumps(
+            clean_speech,
+            ensure_ascii=False
+        )
+
+        tts_html = """
+        <script>
+        (function () {
+
+            const text = %s;
+
+            if (
+                window.speechSynthesis &&
+                text
+            ) {
+
+                window.speechSynthesis.cancel();
+
+                const speech =
+                    new SpeechSynthesisUtterance(text);
+
+                speech.lang = "az-AZ";
+                speech.rate = 1.05;
+                speech.pitch = 1.0;
+
+                window.speechSynthesis.speak(speech);
+            }
+
+        })();
+        </script>
+        """ % speech_json
 
         st.components.v1.html(
-            f"""
-            <script>
-
-                const text =
-                    {json.dumps(clean_speech)};
-
-                if (
-                    window.speechSynthesis &&
-                    text
-                ) {
-
-                    window.speechSynthesis.cancel();
-
-                    const speech =
-                        new SpeechSynthesisUtterance(text);
-
-                    speech.lang = "az-AZ";
-
-                    speech.rate = 1.05;
-
-                    speech.pitch = 1.0;
-
-                    window.speechSynthesis.speak(
-                        speech
-                    );
-                }
-
-            </script>
-            """,
+            tts_html,
             height=1
-    )
+        )
