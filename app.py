@@ -5,44 +5,99 @@ import time
 import json
 import re
 
+
 # ============================================================
 # PAGE
 # ============================================================
 
 st.set_page_config(
-    page_title="Jarvis AI",
+    page_title="JARVIS AI",
     page_icon="🤖",
-    layout="wide"
+    layout="wide",
+    initial_sidebar_state="expanded"
 )
 
+
 # ============================================================
-# GEMINI
+# CONFIG
 # ============================================================
+
+MODEL_NAME = "gemini-3.7-flash"
+
+SYSTEM_INSTRUCTION = """
+Sən JARVIS adlı şəxsi süni intellekt köməkçisisən.
+
+İstifadəçi ilə əsasən Azərbaycan dilində danış.
+
+Davranışın:
+- ağıllı
+- nəzakətli
+- sürətli
+- konkret
+- təbii
+- köməkçi
+
+Cavabları lazımsız yerə uzatma.
+Sadə suallara qısa və aydın cavab ver.
+
+İstifadəçi sənə "cənab" deyə müraciət edə bilər.
+Uyğun olduqda sən də "cənab" deyə müraciət edə bilərsən.
+
+Özünü JARVIS kimi apar.
+Amma özünü real insan kimi təqdim etmə.
+
+Əgər istifadəçi Azərbaycan dilində danışırsa,
+Azərbaycan dilində cavab ver.
+
+Əgər istifadəçi başqa dildə danışırsa,
+mümkün olduqda həmin dildə cavab ver.
+"""
+
+
+# ============================================================
+# GEMINI CLIENT
+# ============================================================
+
+def get_api_keys():
+
+    keys = []
+
+    key1 = st.secrets.get("GEMINI_API_KEY_1")
+    key2 = st.secrets.get("GEMINI_API_KEY_2")
+    key_default = st.secrets.get("GEMINI_API_KEY")
+
+    if key1:
+        keys.append(key1)
+
+    if key2:
+        keys.append(key2)
+
+    if key_default and key_default not in keys:
+        keys.append(key_default)
+
+    return keys
+
 
 def get_gemini_client(attempt_index=0):
 
-    key = None
+    keys = get_api_keys()
 
-    if attempt_index % 2 == 1:
-        key = st.secrets.get("GEMINI_API_KEY_2")
-
-    if not key:
-        key = st.secrets.get(
-            "GEMINI_API_KEY_1",
-            st.secrets.get("GEMINI_API_KEY")
-        )
-
-    if not key:
+    if not keys:
         raise ValueError(
-            "GEMINI API key tapılmadı. "
-            "Secrets bölməsinə GEMINI_API_KEY əlavə edin."
+            "Gemini API key tapılmadı.\n\n"
+            "Streamlit Secrets bölməsinə "
+            "GEMINI_API_KEY əlavə edin."
         )
 
-    return genai.Client(api_key=key)
+    key = keys[attempt_index % len(keys)]
+
+    return genai.Client(
+        api_key=key
+    )
 
 
 # ============================================================
-# SESSION
+# SESSION STATE
 # ============================================================
 
 if "messages" not in st.session_state:
@@ -51,30 +106,8 @@ if "messages" not in st.session_state:
 if "voice_started" not in st.session_state:
     st.session_state.voice_started = False
 
-
-# ============================================================
-# JARVIS SYSTEM
-# ============================================================
-
-SYSTEM_INSTRUCTION = """
-Sən Jarvis adlı şəxsi süni intellekt köməkçisisən.
-
-İstifadəçi ilə əsasən Azərbaycan dilində danış.
-
-Üslubun:
-- ağıllı
-- nəzakətli
-- sürətli
-- konkret
-- təbii
-
-Cavabları lazımsız yerə uzatma.
-
-İstifadəçi sənə "cənab" deyə müraciət edə bilər.
-Uyğun olduqda sən də "cənab" deyə müraciət edə bilərsən.
-
-Özünü Jarvis kimi apar.
-"""
+if "last_response" not in st.session_state:
+    st.session_state.last_response = ""
 
 
 # ============================================================
@@ -87,16 +120,24 @@ st.markdown(
 
 .jarvis-header {
     text-align: center;
-    padding: 10px;
+    padding: 12px 10px 5px 10px;
 }
 
 .jarvis-header h1 {
-    font-size: 42px;
-    margin-bottom: 0;
+    font-size: 44px;
+    margin: 0;
+    font-weight: 800;
+    letter-spacing: 4px;
 }
 
 .jarvis-header p {
     color: #888;
+    margin-top: 5px;
+}
+
+div.stButton > button {
+    border-radius: 12px;
+    min-height: 45px;
 }
 
 </style>
@@ -117,7 +158,10 @@ with st.sidebar:
         "➕ Yeni söhbət",
         use_container_width=True
     ):
+
         st.session_state.messages = []
+        st.session_state.last_response = ""
+
         st.rerun()
 
     st.markdown("---")
@@ -125,7 +169,8 @@ with st.sidebar:
     st.subheader("Keçmiş suallar")
 
     user_messages = [
-        m for m in st.session_state.messages
+        m
+        for m in st.session_state.messages
         if m["role"] == "user"
     ]
 
@@ -135,14 +180,16 @@ with st.sidebar:
 
             text = message["content"]
 
-            if len(text) > 40:
-                text = text[:40] + "..."
+            if len(text) > 45:
+                text = text[:45] + "..."
 
             st.write("▫️ " + text)
 
     else:
 
-        st.caption("Hələ söhbət yoxdur.")
+        st.caption(
+            "Hələ heç bir sual yoxdur."
+        )
 
 
 # ============================================================
@@ -161,13 +208,13 @@ st.markdown(
 
 
 # ============================================================
-# VOICE ENGINE
+# VOICE ACTIVATION
 # ============================================================
 
 if not st.session_state.voice_started:
 
     st.info(
-        'Başlamaq üçün aşağıdakı düyməyə basın. '
+        '🎤 Başlamaq üçün düyməyə basın. '
         'Sonra "Hey Jarvis" deyin.'
     )
 
@@ -178,8 +225,13 @@ if not st.session_state.voice_started:
     ):
 
         st.session_state.voice_started = True
+
         st.rerun()
 
+
+# ============================================================
+# VOICE ENGINE
+# ============================================================
 
 if st.session_state.voice_started:
 
@@ -191,8 +243,10 @@ if st.session_state.voice_started:
 
 <head>
 
-<meta name="viewport"
-content="width=device-width, initial-scale=1">
+<meta
+    name="viewport"
+    content="width=device-width, initial-scale=1"
+/>
 
 <style>
 
@@ -202,54 +256,60 @@ content="width=device-width, initial-scale=1">
 
 body {
     margin: 0;
+    padding: 0;
     background: transparent;
     font-family: Arial, sans-serif;
 }
 
-.jarvis {
+.jarvis-box {
 
     width: 100%;
 
-    padding: 25px;
+    padding: 28px 20px;
 
-    border-radius: 22px;
+    border-radius: 24px;
 
     background:
         radial-gradient(
             circle at center,
-            #132a2a,
-            #090909 70%
+            #102b2b 0%,
+            #0a1111 45%,
+            #050505 100%
         );
 
-    border: 1px solid #00ffd5;
-
-    text-align: center;
+    border: 1px solid
+        rgba(0,255,213,0.7);
 
     color: white;
 
+    text-align: center;
+
     box-shadow:
-        0 0 30px
-        rgba(0,255,213,0.15);
+        0 0 35px
+        rgba(0,255,213,0.14);
 
 }
 
-.logo {
-
+.robot {
     font-size: 55px;
-
-    margin-bottom: 5px;
-
+    line-height: 1;
 }
 
 .title {
 
+    margin-top: 10px;
+
     font-size: 30px;
 
-    font-weight: bold;
+    font-weight: 800;
+
+    letter-spacing: 5px;
 
     color: #00ffd5;
 
-    letter-spacing: 3px;
+    text-shadow:
+        0 0 15px
+        rgba(0,255,213,0.4);
 
 }
 
@@ -261,28 +321,35 @@ body {
 
     font-size: 15px;
 
+    min-height: 22px;
+
 }
 
 .dot {
 
-    width: 20px;
+    width: 22px;
 
-    height: 20px;
+    height: 22px;
 
     border-radius: 50%;
 
-    background: #ff3333;
-
     margin: 20px auto 5px;
 
+    background: #ff3333;
+
     box-shadow:
-        0 0 20px #ff3333;
+        0 0 22px
+        rgba(255,51,51,0.8);
+
+    transition:
+        background 0.2s,
+        box-shadow 0.2s;
 
 }
 
 .hint {
 
-    margin-top: 12px;
+    margin-top: 14px;
 
     color: #666;
 
@@ -294,15 +361,17 @@ body {
 
 </head>
 
-
 <body>
 
+<div class="jarvis-box">
 
-<div class="jarvis">
+    <div class="robot">
+        🤖
+    </div>
 
-    <div class="logo">🤖</div>
-
-    <div class="title">JARVIS</div>
+    <div class="title">
+        JARVIS
+    </div>
 
     <div
         id="status"
@@ -342,7 +411,7 @@ const dot =
 
 
 /* =========================================================
-   SPEECH RECOGNITION
+   SPEECH API
 ========================================================= */
 
 const Recognition =
@@ -350,13 +419,18 @@ const Recognition =
     window.webkitSpeechRecognition;
 
 
+/* =========================================================
+   CHECK SUPPORT
+========================================================= */
+
 if (!Recognition) {
 
     status.innerText =
-        "❌ Səs tanıma dəstəklənmir.";
+        "❌ Bu brauzerdə səs tanıma dəstəklənmir.";
+
+    dot.style.background = "#ff0000";
 
     return;
-
 }
 
 
@@ -368,11 +442,15 @@ let recognition = null;
 
 let running = false;
 
+let starting = false;
+
 let mode = "wake";
 
-let restarting = false;
+let destroyed = false;
 
-let commandTimer = null;
+let restartTimer = null;
+
+let commandTimeout = null;
 
 
 /* =========================================================
@@ -386,6 +464,7 @@ const wakeWords = [
     "hey jervis",
     "hey cervis",
     "hey carvis",
+    "hey jarvis",
     "ey jarvis",
     "jarvis"
 
@@ -398,10 +477,10 @@ const wakeWords = [
 
 function normalize(text) {
 
-    return text
+    return String(text || "")
         .toLowerCase()
-        .replace(/[.,!?;:]/g, "")
-        .replace(/\s+/g, " ")
+        .replace(/[.,!?;:()[\\]{}]/g, " ")
+        .replace(/\\s+/g, " ")
         .trim();
 
 }
@@ -411,73 +490,70 @@ function normalize(text) {
    UI
 ========================================================= */
 
+function setStatus(text) {
+
+    status.innerText = text;
+
+}
+
+
 function wakeUI() {
 
-    status.innerText =
-        '👂 "Hey Jarvis" gözlənilir...';
+    setStatus(
+        '👂 "Hey Jarvis" gözlənilir...'
+    );
 
-    dot.style.background =
-        "#ff3333";
+    dot.style.background = "#ff3333";
 
     dot.style.boxShadow =
-        "0 0 20px #ff3333";
+        "0 0 25px rgba(255,51,51,0.9)";
 
 }
 
 
 function listeningUI() {
 
-    status.innerText =
-        "🎤 Sizi dinləyirəm...";
+    setStatus(
+        "🎤 Sizi dinləyirəm..."
+    );
 
-    dot.style.background =
-        "#00ffd5";
+    dot.style.background = "#00ffd5";
 
     dot.style.boxShadow =
-        "0 0 35px #00ffd5";
+        "0 0 40px rgba(0,255,213,0.9)";
 
 }
 
 
 function thinkingUI() {
 
-    status.innerText =
-        "🧠 Düşünürəm...";
+    setStatus(
+        "🧠 Düşünürəm..."
+    );
 
-    dot.style.background =
-        "#4285ff";
+    dot.style.background = "#4285ff";
 
     dot.style.boxShadow =
-        "0 0 35px #4285ff";
+        "0 0 40px rgba(66,133,255,0.9)";
 
 }
 
 
 /* =========================================================
-   CHECK WAKE WORD
+   WAKE WORD
 ========================================================= */
 
 function hasWakeWord(text) {
 
-    const clean = normalize(text);
+    const clean =
+        normalize(text);
 
-    for (
-        const word of wakeWords
-    ) {
-
-        if (
+    return wakeWords.some(
+        word =>
             clean.includes(
                 normalize(word)
             )
-        ) {
-
-            return true;
-
-        }
-
-    }
-
-    return false;
+    );
 
 }
 
@@ -488,7 +564,8 @@ function hasWakeWord(text) {
 
 function removeWakeWord(text) {
 
-    let result = normalize(text);
+    let result =
+        normalize(text);
 
     for (
         const word of wakeWords
@@ -497,12 +574,14 @@ function removeWakeWord(text) {
         result =
             result.replace(
                 normalize(word),
-                ""
+                " "
             );
 
     }
 
-    return result.trim();
+    return result
+        .replace(/\\s+/g, " ")
+        .trim();
 
 }
 
@@ -521,22 +600,24 @@ function getMaleVoice() {
 
     const voices =
         window.speechSynthesis
-        .getVoices();
+            .getVoices();
 
     if (!voices.length) {
         return null;
     }
 
 
-    const preferred = [
+    const maleNames = [
 
         "Microsoft David",
         "Microsoft Mark",
         "Microsoft George",
+        "Microsoft Ryan",
         "Google US English",
         "David",
         "Mark",
         "George",
+        "Ryan",
         "Daniel",
         "Thomas",
         "Arthur",
@@ -546,38 +627,42 @@ function getMaleVoice() {
     ];
 
 
+    /* =====================================================
+       PREFERRED MALE VOICES
+    ===================================================== */
+
     for (
-        const preferredName
-        of preferred
+        const name of maleNames
     ) {
 
-        const found =
+        const voice =
             voices.find(
                 v =>
                     v.name
                     .toLowerCase()
                     .includes(
-                        preferredName
-                        .toLowerCase()
+                        name.toLowerCase()
                     )
             );
 
-        if (found) {
-            return found;
+        if (voice) {
+            return voice;
         }
 
     }
 
 
-    /* AZƏRBAYCAN SƏSİ */
+    /* =====================================================
+       AZERBAIJANI
+    ===================================================== */
 
     const azVoice =
         voices.find(
             v =>
                 v.lang &&
                 v.lang
-                .toLowerCase()
-                .startsWith("az")
+                    .toLowerCase()
+                    .startsWith("az")
         );
 
     if (azVoice) {
@@ -585,19 +670,21 @@ function getMaleVoice() {
     }
 
 
-    /* ENGLISH FALLBACK */
+    /* =====================================================
+       ENGLISH
+    ===================================================== */
 
-    const english =
+    const englishVoice =
         voices.find(
             v =>
                 v.lang &&
                 v.lang
-                .toLowerCase()
-                .startsWith("en")
+                    .toLowerCase()
+                    .startsWith("en")
         );
 
-    if (english) {
-        return english;
+    if (englishVoice) {
+        return englishVoice;
     }
 
 
@@ -621,7 +708,6 @@ function speak(text, callback) {
         }
 
         return;
-
     }
 
 
@@ -639,25 +725,18 @@ function speak(text, callback) {
 
 
     if (voice) {
-        utterance.voice = voice;
+
+        utterance.voice =
+            voice;
+
     }
 
 
-    /*
-       Azərbaycan dili.
-       Səs cihazdan seçilir.
-    */
-
     utterance.lang = "az-AZ";
 
+    utterance.rate = 0.88;
 
-    /*
-       Jarvis effekti
-    */
-
-    utterance.rate = 0.90;
-
-    utterance.pitch = 0.75;
+    utterance.pitch = 0.72;
 
     utterance.volume = 1.0;
 
@@ -689,32 +768,14 @@ function speak(text, callback) {
 
 
 /* =========================================================
-   SEND TO STREAMLIT
+   FIND STREAMLIT INPUT
 ========================================================= */
 
-function sendToStreamlit(text) {
-
-    if (!text) {
-
-        mode = "wake";
-
-        restart();
-
-        return;
-
-    }
-
-
-    thinkingUI();
-
+function findInput() {
 
     const parent =
         window.parent.document;
 
-
-    /*
-       Streamlit input-u tapılır.
-    */
 
     const inputs =
         Array.from(
@@ -724,18 +785,13 @@ function sendToStreamlit(text) {
         );
 
 
-    let input = null;
-
-
     for (
-        const element
-        of inputs
+        const input of inputs
     ) {
 
         const placeholder =
             (
-                element
-                .getAttribute(
+                input.getAttribute(
                     "placeholder"
                 ) || ""
             ).toLowerCase();
@@ -743,8 +799,7 @@ function sendToStreamlit(text) {
 
         const aria =
             (
-                element
-                .getAttribute(
+                input.getAttribute(
                     "aria-label"
                 ) || ""
             ).toLowerCase();
@@ -760,152 +815,191 @@ function sendToStreamlit(text) {
             )
         ) {
 
-            input = element;
-
-            break;
+            return input;
 
         }
 
     }
 
 
-    /*
-       Əgər input tapılmadısa,
-       bütün text input-lardan istifadə et.
-    */
+    return inputs.find(
+        input =>
+            input.type === "text"
+    ) || null;
 
-    if (!input) {
-
-        input =
-            inputs.find(
-                el =>
-                    el.type === "text"
-            );
-
-    }
+}
 
 
-    if (!input) {
+/* =========================================================
+   SEND COMMAND TO STREAMLIT
+========================================================= */
 
-        status.innerText =
-            "⚠️ Mətn sahəsi tapılmadı.";
+function sendToStreamlit(text) {
+
+    const clean =
+        normalize(text);
+
+
+    if (!clean) {
 
         mode = "wake";
 
-        restart();
+        restartRecognition();
 
         return;
 
     }
 
 
-    /*
-       React / Streamlit üçün
-       native setter
-    */
-
-    const setter =
-        Object.getOwnPropertyDescriptor(
-            HTMLInputElement.prototype,
-            "value"
-        ).set;
+    thinkingUI();
 
 
-    setter.call(
-        input,
-        text
-    );
+    const input =
+        findInput();
 
 
-    input.dispatchEvent(
-        new Event(
-            "input",
-            {
-                bubbles: true
-            }
-        )
-    );
+    if (!input) {
+
+        setStatus(
+            "⚠️ Mətn sahəsi tapılmadı."
+        );
+
+        mode = "wake";
+
+        restartRecognition();
+
+        return;
+
+    }
 
 
-    input.dispatchEvent(
-        new Event(
-            "change",
-            {
-                bubbles: true
-            }
-        )
-    );
+    try {
+
+        const setter =
+            Object.getOwnPropertyDescriptor(
+                HTMLInputElement.prototype,
+                "value"
+            ).set;
 
 
-    /*
-       Formu tap
-    */
-
-    setTimeout(
-        function () {
-
-            const form =
-                input.closest("form");
+        setter.call(
+            input,
+            clean
+        );
 
 
-            if (form) {
+        input.dispatchEvent(
+            new Event(
+                "input",
+                {
+                    bubbles: true
+                }
+            )
+        );
 
-                const button =
-                    form.querySelector(
-                        'button[type="submit"]'
-                    );
+
+        input.dispatchEvent(
+            new Event(
+                "change",
+                {
+                    bubbles: true
+                }
+            )
+        );
 
 
-                if (button) {
+        setTimeout(
+            function () {
 
-                    button.click();
+                const form =
+                    input.closest("form");
 
-                    return;
+
+                if (form) {
+
+                    const submitButton =
+                        form.querySelector(
+                            'button[type="submit"]'
+                        );
+
+
+                    if (submitButton) {
+
+                        submitButton.click();
+
+                        return;
+
+                    }
 
                 }
 
-            }
+
+                input.focus();
 
 
-            /*
-               Fallback:
-               Enter göndər
-            */
+                input.dispatchEvent(
+                    new KeyboardEvent(
+                        "keydown",
+                        {
+                            key: "Enter",
+                            code: "Enter",
+                            keyCode: 13,
+                            which: 13,
+                            bubbles: true
+                        }
+                    )
+                );
 
-            input.focus();
 
-            input.dispatchEvent(
-                new KeyboardEvent(
-                    "keydown",
-                    {
-                        key: "Enter",
-                        code: "Enter",
-                        keyCode: 13,
-                        which: 13,
-                        bubbles: true
-                    }
-                )
-            );
+                input.dispatchEvent(
+                    new KeyboardEvent(
+                        "keyup",
+                        {
+                            key: "Enter",
+                            code: "Enter",
+                            keyCode: 13,
+                            which: 13,
+                            bubbles: true
+                        }
+                    )
+                );
 
-        },
-        250
+            },
+            300
+        );
+
+
+    } catch (error) {
+
+        console.error(
+            "Streamlit input error:",
+            error
+        );
+
+        setStatus(
+            "⚠️ Komanda göndərilə bilmədi."
+        );
+
+    }
+
+
+    mode = "wake";
+
+
+    clearTimeout(
+        commandTimeout
     );
 
 
-    /*
-       Bir müddət sonra wake mode
-    */
+    commandTimeout =
+        setTimeout(
+            function () {
 
-    setTimeout(
-        function () {
+                restartRecognition();
 
-            mode = "wake";
-
-            restart();
-
-        },
-        1800
-    );
+            },
+            2200
+        );
 
 }
 
@@ -921,17 +1015,12 @@ function createRecognition() {
 
 
     /*
-       Azərbaycan dili
+       Azərbaycan dili.
+       Əgər cihazda problem yaranarsa,
+       brauzer öz dəstəklədiyi sistemi istifadə edir.
     */
 
     r.lang = "az-AZ";
-
-
-    /*
-       Bəzi Android cihazlarda
-       az-AZ zəif işləyə bilər.
-       alternativ nəticələr alınır.
-    */
 
     r.continuous = false;
 
@@ -949,7 +1038,7 @@ function createRecognition() {
 
             running = true;
 
-            restarting = false;
+            starting = false;
 
 
             if (
@@ -980,48 +1069,64 @@ function createRecognition() {
             let bestText = "";
 
 
+            if (
+                !event.results ||
+                !event.results.length
+            ) {
+
+                restartRecognition();
+
+                return;
+
+            }
+
+
+            const result =
+                event.results[
+                    event.results.length - 1
+                ];
+
+
             /*
-               Alternativ nəticələri yoxla
+               Ən uyğun nəticəni seç.
             */
 
             for (
                 let i = 0;
-                i <
-                event.results[0].length;
+                i < result.length;
                 i++
             ) {
 
-                const alternative =
+                const transcript =
                     normalize(
-                        event.results[0][i]
-                            .transcript
+                        result[i].transcript
                     );
 
 
+                if (!transcript) {
+                    continue;
+                }
+
+
                 if (
-                    alternative
+                    !bestText
                 ) {
 
                     bestText =
-                        alternative;
+                        transcript;
 
                 }
 
 
-                /*
-                   Wake mode-da Jarvis
-                   sözünü tapdıqsa dərhal istifadə et
-                */
-
                 if (
                     mode === "wake" &&
                     hasWakeWord(
-                        alternative
+                        transcript
                     )
                 ) {
 
                     bestText =
-                        alternative;
+                        transcript;
 
                     break;
 
@@ -1031,7 +1136,7 @@ function createRecognition() {
 
 
             console.log(
-                "Jarvis eşitdi:",
+                "JARVIS eşitdi:",
                 bestText
             );
 
@@ -1050,37 +1155,30 @@ function createRecognition() {
                     )
                 ) {
 
-                    restart();
+                    restartRecognition();
 
                     return;
 
                 }
 
 
-                /*
-                   Jarvis aktivləşdi
-                */
-
                 mode = "command";
 
 
-                /*
-                   Əgər istifadəçi
-                   "Hey Jarvis, hava necədir?"
-                   deyibsə, ayrıca ikinci
-                   dinləməyə ehtiyac yoxdur.
-                */
-
-                const remaining =
+                const command =
                     removeWakeWord(
                         bestText
                     );
 
 
-                if (remaining) {
+                /*
+                   "Hey Jarvis, hava necədir?"
+                */
+
+                if (command) {
 
                     sendToStreamlit(
-                        remaining
+                        command
                     );
 
                     return;
@@ -1090,11 +1188,11 @@ function createRecognition() {
 
                 /*
                    Sadəcə "Hey Jarvis"
-                   deyilibsə
                 */
 
-                status.innerText =
-                    "🤖 Bəli cənab...";
+                setStatus(
+                    "🤖 Bəli cənab..."
+                );
 
 
                 dot.style.background =
@@ -1102,7 +1200,7 @@ function createRecognition() {
 
 
                 dot.style.boxShadow =
-                    "0 0 40px #00ffd5";
+                    "0 0 45px rgba(0,255,213,1)";
 
 
                 speak(
@@ -1116,7 +1214,7 @@ function createRecognition() {
                         setTimeout(
                             function () {
 
-                                start();
+                                startRecognition();
 
                             },
                             250
@@ -1143,7 +1241,7 @@ function createRecognition() {
 
                     mode = "wake";
 
-                    restart();
+                    restartRecognition();
 
                     return;
 
@@ -1153,8 +1251,6 @@ function createRecognition() {
                 sendToStreamlit(
                     bestText
                 );
-
-                return;
 
             }
 
@@ -1169,12 +1265,14 @@ function createRecognition() {
         function (event) {
 
             console.log(
-                "Recognition error:",
+                "Speech error:",
                 event.error
             );
 
 
             running = false;
+
+            starting = false;
 
 
             if (
@@ -1182,11 +1280,15 @@ function createRecognition() {
                 "not-allowed"
             ) {
 
-                status.innerText =
-                    "❌ Mikrofon icazəsi yoxdur.";
+                setStatus(
+                    "❌ Mikrofon icazəsi verilməyib."
+                );
 
                 dot.style.background =
                     "#ff0000";
+
+                dot.style.boxShadow =
+                    "0 0 30px #ff0000";
 
                 return;
 
@@ -1198,8 +1300,9 @@ function createRecognition() {
                 "service-not-allowed"
             ) {
 
-                status.innerText =
-                    "❌ Brauzer səs xidmətinə icazə vermir.";
+                setStatus(
+                    "❌ Brauzerin səs xidməti əlçatan deyil."
+                );
 
                 return;
 
@@ -1211,8 +1314,25 @@ function createRecognition() {
                 "audio-capture"
             ) {
 
-                status.innerText =
-                    "❌ Mikrofon tapılmadı.";
+                setStatus(
+                    "❌ Mikrofon tapılmadı."
+                );
+
+                return;
+
+            }
+
+
+            /*
+               no-speech normal haldır.
+            */
+
+            if (
+                event.error ===
+                "no-speech"
+            ) {
+
+                restartRecognition();
 
                 return;
 
@@ -1220,12 +1340,16 @@ function createRecognition() {
 
 
             if (
-                mode === "wake"
+                event.error ===
+                "aborted"
             ) {
 
-                restart();
+                return;
 
             }
+
+
+            restartRecognition();
 
         };
 
@@ -1239,12 +1363,19 @@ function createRecognition() {
 
             running = false;
 
+            starting = false;
+
+
+            if (destroyed) {
+                return;
+            }
+
 
             if (
                 mode === "wake"
             ) {
 
-                restart();
+                restartRecognition();
 
             }
 
@@ -1257,14 +1388,23 @@ function createRecognition() {
 
 
 /* =========================================================
-   START
+   START RECOGNITION
 ========================================================= */
 
-function start() {
+function startRecognition() {
 
-    if (running) {
+    if (
+        destroyed ||
+        running ||
+        starting
+    ) {
+
         return;
+
     }
+
+
+    starting = true;
 
 
     try {
@@ -1275,23 +1415,34 @@ function start() {
 
         recognition.start();
 
-    }
 
-    catch (error) {
+    } catch (error) {
 
         console.log(
-            "Start error:",
+            "Recognition start error:",
             error
         );
 
 
         running = false;
 
+        starting = false;
 
-        setTimeout(
-            start,
-            1200
+
+        clearTimeout(
+            restartTimer
         );
+
+
+        restartTimer =
+            setTimeout(
+                function () {
+
+                    startRecognition();
+
+                },
+                1000
+            );
 
     }
 
@@ -1299,47 +1450,61 @@ function start() {
 
 
 /* =========================================================
-   RESTART
+   RESTART RECOGNITION
 ========================================================= */
 
-function restart() {
+function restartRecognition() {
 
-    if (restarting) {
+    if (destroyed) {
         return;
     }
 
 
-    restarting = true;
+    clearTimeout(
+        restartTimer
+    );
 
 
     if (recognition) {
 
         try {
+
             recognition.stop();
-        }
-        catch(e) {}
+
+        } catch (e) {}
 
     }
 
 
-    setTimeout(
-        function () {
+    running = false;
 
-            restarting = false;
+    starting = false;
 
-            mode = "wake";
 
-            start();
+    restartTimer =
+        setTimeout(
+            function () {
 
-        },
-        700
-    );
+                if (
+                    mode !== "wake"
+                ) {
+
+                    mode = "wake";
+
+                }
+
+
+                startRecognition();
+
+            },
+            650
+        );
 
 }
 
 
 /* =========================================================
-   LOAD VOICES
+   VOICE LOAD
 ========================================================= */
 
 if (
@@ -1369,13 +1534,12 @@ if (
 setTimeout(
     function () {
 
-        status.innerText =
-            '👂 "Hey Jarvis" gözlənilir...';
+        wakeUI();
 
-        start();
+        startRecognition();
 
     },
-    1000
+    900
 );
 
 
@@ -1387,7 +1551,8 @@ setTimeout(
 
 </html>
         """,
-        height=270
+        height=300,
+        scrolling=False
     )
 
 
@@ -1398,9 +1563,7 @@ setTimeout(
 st.markdown("---")
 
 
-for idx, message in enumerate(
-    st.session_state.messages
-):
+for message in st.session_state.messages:
 
     with st.chat_message(
         message["role"]
@@ -1423,8 +1586,12 @@ with st.form(
 
     prompt = st.text_input(
         "Jarvisə nəsə de...",
-        placeholder="Məsələn: Bakı haqqında məlumat ver"
+        placeholder=(
+            "Məsələn: Bakı haqqında məlumat ver"
+        ),
+        label_visibility="visible"
     )
+
 
     submit = st.form_submit_button(
         "➜ Göndər",
@@ -1436,7 +1603,15 @@ with st.form(
 # GEMINI
 # ============================================================
 
-if submit and prompt:
+if submit and prompt.strip():
+
+    prompt =
+        prompt.strip()
+
+
+    # ========================================================
+    # USER MESSAGE
+    # ========================================================
 
     st.session_state.messages.append(
         {
@@ -1448,31 +1623,82 @@ if submit and prompt:
 
     with st.chat_message("user"):
 
-        st.markdown(prompt)
+        st.markdown(
+            prompt
+        )
 
+
+    # ========================================================
+    # ASSISTANT
+    # ========================================================
 
     with st.chat_message("assistant"):
 
         response_text = None
 
+        last_error = None
 
-        for attempt in range(3):
+
+        # ====================================================
+        # BUILD CONVERSATION HISTORY
+        # ====================================================
+
+        contents = []
+
+
+        for message in st.session_state.messages:
+
+            role =
+                message["role"]
+
+
+            text =
+                message["content"]
+
+
+            contents.append(
+                types.Content(
+                    role=(
+                        "user"
+                        if role == "user"
+                        else "model"
+                    ),
+                    parts=[
+                        types.Part.from_text(
+                            text=text
+                        )
+                    ]
+                )
+            )
+
+
+        # ====================================================
+        # API RETRIES
+        # ====================================================
+
+        for attempt in range(4):
 
             try:
 
                 client =
-                    get_gemini_client(attempt)
+                    get_gemini_client(
+                        attempt
+                    )
 
 
                 response =
                     client.models.generate_content(
-                        model="gemini-3.6-flash",
-                        contents=prompt,
-                        config=types.GenerateContentConfig(
-                            system_instruction=
-                                SYSTEM_INSTRUCTION,
-                            temperature=0.2
-                        )
+                        model=MODEL_NAME,
+                        contents=contents,
+                        config=
+                            types.GenerateContentConfig(
+                                system_instruction=
+                                    SYSTEM_INSTRUCTION,
+
+                                temperature=0.25,
+
+                                max_output_tokens=1200
+                            )
                     )
 
 
@@ -1489,29 +1715,48 @@ if submit and prompt:
 
             except Exception as error:
 
+                last_error =
+                    str(error)
+
                 print(
                     "Gemini error:",
                     error
                 )
 
 
-                if attempt < 2:
-                    time.sleep(2)
+                if attempt < 3:
 
+                    time.sleep(
+                        1.5
+                    )
+
+
+        # ====================================================
+        # FALLBACK
+        # ====================================================
 
         if not response_text:
 
             response_text = (
                 "Bağışlayın cənab, "
-                "hazırda cavab ala bilmədim."
+                "hazırda Gemini xidmətindən "
+                "cavab ala bilmədim."
             )
 
+
+        # ====================================================
+        # SHOW RESPONSE
+        # ====================================================
 
         st.markdown(
             response_text,
             unsafe_allow_html=True
         )
 
+
+        # ====================================================
+        # SAVE RESPONSE
+        # ====================================================
 
         st.session_state.messages.append(
             {
@@ -1521,29 +1766,64 @@ if submit and prompt:
         )
 
 
+        st.session_state.last_response =
+            response_text
+
+
+        # ====================================================
+        # CLEAN TEXT FOR SPEECH
+        # ====================================================
+
+        clean_speech =
+            response_text
+
+
+        # Markdown links
+        clean_speech =
+            re.sub(
+                r"\[([^\]]+)\]\([^)]+\)",
+                r"\1",
+                clean_speech
+            )
+
+
+        # Code blocks
+        clean_speech =
+            re.sub(
+                r"```[\s\S]*?```",
+                "",
+                clean_speech
+            )
+
+
+        # Markdown symbols
+        clean_speech =
+            re.sub(
+                r"[*_#>`~]",
+                "",
+                clean_speech
+            )
+
+
+        # Multiple spaces
+        clean_speech =
+            re.sub(
+                r"\s+",
+                " ",
+                clean_speech
+            ).strip()
+
+
+        speech_json =
+            json.dumps(
+                clean_speech,
+                ensure_ascii=False
+            )
+
+
         # ====================================================
         # TEXT TO SPEECH
         # ====================================================
-
-        clean_speech = re.sub(
-            r"\[([^\]]+)\]\([^)]+\)",
-            r"\1",
-            response_text
-        )
-
-
-        clean_speech = re.sub(
-            r"[*_#`]",
-            "",
-            clean_speech
-        )
-
-
-        speech_json = json.dumps(
-            clean_speech,
-            ensure_ascii=False
-        )
-
 
         st.components.v1.html(
             f"""
@@ -1551,151 +1831,202 @@ if submit and prompt:
 
 (function() {{
 
-    const text =
-        {speech_json};
+"use strict";
 
 
-    if (
-        !text ||
-        !window.speechSynthesis
-    ) {{
-        return;
-    }}
+const text =
+    {speech_json};
 
 
-    function speak() {{
-
-        window.speechSynthesis.cancel();
-
-
-        const utterance =
-            new SpeechSynthesisUtterance(
-                text
-            );
+if (
+    !text ||
+    !window.speechSynthesis
+) {{
+    return;
+}}
 
 
-        const voices =
-            window.speechSynthesis
-                .getVoices();
+/* =========================================================
+   VOICE SELECTION
+========================================================= */
 
-
-        let selected = null;
-
-
-        const preferred = [
-
-            "Microsoft David",
-            "Microsoft Mark",
-            "Microsoft George",
-            "David",
-            "Mark",
-            "George",
-            "Daniel",
-            "Thomas",
-            "Arthur",
-            "Alex"
-
-        ];
-
-
-        for (
-            const wanted
-            of preferred
-        ) {{
-
-            selected =
-                voices.find(
-                    v =>
-                        v.name
-                        .toLowerCase()
-                        .includes(
-                            wanted.toLowerCase()
-                        )
-                );
-
-
-            if (selected) {{
-                break;
-            }}
-
-        }}
-
-
-        if (!selected) {{
-
-            selected =
-                voices.find(
-                    v =>
-                        v.lang &&
-                        v.lang
-                        .toLowerCase()
-                        .startsWith("az")
-                );
-
-        }}
-
-
-        if (!selected) {{
-
-            selected =
-                voices.find(
-                    v =>
-                        v.lang &&
-                        v.lang
-                        .toLowerCase()
-                        .startsWith("en")
-                );
-
-        }}
-
-
-        if (selected) {{
-            utterance.voice = selected;
-        }}
-
-
-        utterance.lang = "az-AZ";
-
-        utterance.rate = 0.90;
-
-        utterance.pitch = 0.75;
-
-        utterance.volume = 1.0;
-
-
-        window.speechSynthesis
-            .speak(utterance);
-
-    }}
-
+function findMaleVoice() {{
 
     const voices =
         window.speechSynthesis
             .getVoices();
 
 
-    if (voices.length) {{
+    if (!voices.length) {{
+        return null;
+    }}
 
-        speak();
 
-    }} else {{
+    const preferred = [
 
-        window.speechSynthesis
-            .onvoiceschanged =
-            function() {{
+        "Microsoft David",
+        "Microsoft Mark",
+        "Microsoft George",
+        "Microsoft Ryan",
+        "David",
+        "Mark",
+        "George",
+        "Ryan",
+        "Daniel",
+        "Thomas",
+        "Arthur",
+        "Alex"
 
-                window.speechSynthesis
-                    .onvoiceschanged = null;
+    ];
 
-                speak();
 
-            }};
+    for (
+        const wanted
+        of preferred
+    ) {{
+
+        const found =
+            voices.find(
+                v =>
+                    v.name
+                    .toLowerCase()
+                    .includes(
+                        wanted.toLowerCase()
+                    )
+            );
+
+
+        if (found) {{
+            return found;
+        }}
 
     }}
+
+
+    const az =
+        voices.find(
+            v =>
+                v.lang &&
+                v.lang
+                    .toLowerCase()
+                    .startsWith("az")
+        );
+
+
+    if (az) {{
+        return az;
+    }}
+
+
+    const english =
+        voices.find(
+            v =>
+                v.lang &&
+                v.lang
+                    .toLowerCase()
+                    .startsWith("en")
+        );
+
+
+    if (english) {{
+        return english;
+    }}
+
+
+    return voices[0];
+
+}}
+
+
+/* =========================================================
+   SPEAK
+========================================================= */
+
+function speak() {{
+
+    window.speechSynthesis.cancel();
+
+
+    const utterance =
+        new SpeechSynthesisUtterance(
+            text
+        );
+
+
+    const voice =
+        findMaleVoice();
+
+
+    if (voice) {{
+        utterance.voice =
+            voice;
+    }}
+
+
+    utterance.lang =
+        "az-AZ";
+
+
+    utterance.rate =
+        0.88;
+
+
+    utterance.pitch =
+        0.72;
+
+
+    utterance.volume =
+        1.0;
+
+
+    window.speechSynthesis
+        .speak(
+            utterance
+        );
+
+}}
+
+
+/* =========================================================
+   VOICES MAY LOAD LATE
+========================================================= */
+
+const voices =
+    window.speechSynthesis
+        .getVoices();
+
+
+if (voices.length) {{
+
+    setTimeout(
+        speak,
+        150
+    );
+
+}} else {{
+
+    window.speechSynthesis
+        .onvoiceschanged =
+        function() {{
+
+            window.speechSynthesis
+                .onvoiceschanged =
+                null;
+
+
+            setTimeout(
+                speak,
+                100
+            );
+
+        }};
+
+}}
 
 }})();
 
 </script>
 """,
-            height=1
+            height=1,
+            scrolling=False
     )
